@@ -1,0 +1,16 @@
+fastapi
+uvicorn
+sqlalchemy>=2
+psycopg2-binary
+pandas
+pydantic-settings
+pyjwt
+bcrypt
+python-multipart
+google-genai
+rapidfuzz
+pillow
+numpy
+httpx
+pytest
+# OCR (PaddleOCR) is installed separately, see requirements-ocr.txt
