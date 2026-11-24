@@ -1,0 +1,74 @@
+@import "tailwindcss";
+
+/* Design tokens: Airtel colour world (red accent, crisp white, near-black ink, warm greys). */
+@theme {
+  --color-brand: #e40000;
+  --color-brand-600: #c80000;
+  --color-brand-700: #a50000;
+  --color-brand-900: #5c0000;
+  --color-brand-50: #fff1f0;
+  --color-brand-100: #ffe0dd;
+  --color-ink: #111114;
+  --color-ink-2: #2b2b31;
+  --color-muted: #66666e;
+  --color-subtle: #8d8d95;
+  --color-line: #e8e4df;
+  --color-line-2: #d9d4cd;
+  --color-surface: #f6f4f1;
+  --color-surface-2: #efebe6;
+  --color-ok: #127a3e;
+  --color-ok-bg: #e7f5ec;
+  --color-warn: #8a5a00;
+  --color-warn-bg: #fdf3dc;
+  --color-bad: #b42318;
+  --color-bad-bg: #fde8e6;
+  --color-info: #1f4e8c;
+  --color-info-bg: #e8eff9;
+
+  --font-sans: "Plus Jakarta Sans Variable", "Noto Sans Devanagari", "Noto Sans Telugu", "Noto Sans Tamil",
+    "Noto Sans Kannada", "Noto Sans Malayalam", "Noto Sans Bengali", "Noto Sans Gujarati", "Noto Sans Gurmukhi",
+    system-ui, "Segoe UI", Roboto, Arial, sans-serif;
+
+  --radius-card: 18px;
+  --shadow-card: 0 1px 2px rgb(17 17 20 / 0.04), 0 8px 24px -12px rgb(17 17 20 / 0.12);
+  --shadow-lift: 0 2px 4px rgb(17 17 20 / 0.05), 0 18px 40px -18px rgb(17 17 20 / 0.25);
+  --animate-wave: wave 1s ease-in-out infinite;
+  @keyframes wave {
+    0%, 100% { transform: scaleY(0.35); }
+    50% { transform: scaleY(1); }
+  }
+}
+
+html { -webkit-text-size-adjust: 100%; }
+body {
+  background: var(--color-surface);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-feature-settings: "ss01", "cv11";
+  -webkit-font-smoothing: antialiased;
+}
+/* Indic scripts need more line height and slightly larger size to stay readable */
+html:not([data-script="latin"]) body { line-height: 1.65; }
+html:not([data-script="latin"]) .text-xs { font-size: 0.8rem; }
+
+::selection { background: var(--color-brand-100); color: var(--color-brand-900); }
+:focus-visible { outline: 2.5px solid var(--color-brand); outline-offset: 2px; border-radius: 8px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+
+@layer components {
+  .container-x { @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8; }
+  .card { @apply rounded-[var(--radius-card)] border border-line bg-white shadow-[var(--shadow-card)]; }
+  .eyebrow { @apply text-xs font-semibold uppercase tracking-[0.14em] text-brand; }
+  .h-display { @apply text-4xl font-extrabold tracking-[-0.03em] text-ink sm:text-5xl lg:text-6xl; }
+  .h1 { @apply text-2xl font-bold tracking-[-0.02em] text-ink sm:text-3xl; }
+  .h2 { @apply text-lg font-bold tracking-[-0.01em] text-ink; }
+  .lead { @apply text-base text-muted sm:text-lg; }
+  .input {
+    @apply w-full rounded-xl border border-line-2 bg-white px-3.5 py-2.5 text-[15px] text-ink placeholder:text-subtle
+      transition focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/10 disabled:bg-surface;
+  }
+  .label { @apply mb-1.5 block text-sm font-semibold text-ink-2; }
+}
