@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { BriefcaseBusiness, Check, Headset, Lock, LogOut, Menu, Package, ShieldCheck, X } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -45,6 +45,10 @@ export function SiteHeader() {
   const { openHelp } = useHelp();
   const [open, setOpen] = useState(false);
   const signOut = () => { logout(); setOpen(false); router.push("/"); };
+  // Highlight the current page only after mount, so server and browser render the same markup (no hydration mismatch).
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const active = (href: string) => mounted && path.startsWith(href);
 
   return (
     <header className="sticky top-0 z-40">
@@ -55,9 +59,9 @@ export function SiteHeader() {
           <nav className="hidden items-center gap-1 lg:flex">
             {LINKS.map((l) => (
               <Link key={l.href} href={l.href} className={cn("relative rounded-full px-4 py-2 text-[15px] font-semibold transition",
-                path.startsWith(l.href) ? "text-ink" : "text-muted hover:text-ink")}>
+                active(l.href) ? "text-ink" : "text-muted hover:text-ink")}>
                 {t(l.key)}
-                {path.startsWith(l.href) && <motion.span layoutId="nav-dot" className="absolute inset-x-4 -bottom-[17px] h-[3px] rounded-full bg-brand" />}
+                {active(l.href) && <motion.span layoutId="nav-dot" className="absolute inset-x-4 -bottom-[17px] h-[3px] rounded-full bg-brand" />}
               </Link>
             ))}
           </nav>
@@ -85,7 +89,7 @@ export function SiteHeader() {
             className="overflow-hidden border-b border-line bg-white lg:hidden">
             <div className="container-x grid gap-1 py-3">
               {LINKS.map((l) => (
-                <Link key={l.href} href={l.href} onClick={() => setOpen(false)} className={cn("rounded-xl px-3 py-3 font-semibold", path.startsWith(l.href) ? "bg-brand-50 text-brand-700" : "text-ink-2")}>{t(l.key)}</Link>
+                <Link key={l.href} href={l.href} onClick={() => setOpen(false)} className={cn("rounded-xl px-3 py-3 font-semibold", active(l.href) ? "bg-brand-50 text-brand-700" : "text-ink-2")}>{t(l.key)}</Link>
               ))}
               <button onClick={() => { setOpen(false); openHelp(); }} className="rounded-xl px-3 py-3 text-left font-semibold text-ink-2">{t("help")}</button>
               {user ? (

@@ -133,6 +133,8 @@ def ensure_employee(db: Session):
         if not u:
             db.add(User(email=email, name=settings.employee_name, role="employee",
                         password_hash=hash_password(settings.employee_password)))
-        elif u.role != "employee" or not verify_password(settings.employee_password, u.password_hash):
-            u.role, u.password_hash = "employee", hash_password(settings.employee_password)
+        else:
+            if u.role != "employee" or not verify_password(settings.employee_password, u.password_hash):
+                u.role, u.password_hash = "employee", hash_password(settings.employee_password)
+            u.name = settings.employee_name  # display name follows .env
     db.commit()

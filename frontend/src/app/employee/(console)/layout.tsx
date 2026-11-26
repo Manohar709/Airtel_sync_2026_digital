@@ -2,7 +2,7 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Inbox, LogOut, ScanSearch } from "lucide-react";
+import { Inbox, LogOut, ScanSearch, ShieldCheck } from "lucide-react";
 import { logout } from "@/lib/api";
 import Logo from "@/components/Logo";
 import { useSession } from "@/components/session";
@@ -11,6 +11,7 @@ import { cn } from "@/components/ui";
 const NAV = [
   { href: "/employee", label: "My work", icon: Inbox },
   { href: "/employee/kyc", label: "KYC check", icon: ScanSearch },
+  { href: "/employee/privacy", label: "Data privacy", icon: ShieldCheck },
 ];
 
 export default function ConsoleLayout({ children }: { children: React.ReactNode }) {
