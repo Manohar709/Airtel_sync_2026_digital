@@ -100,6 +100,8 @@ class Application(Base):
     help_requested: Mapped[bool] = mapped_column(Boolean, default=False)
     help_note: Mapped[str | None] = mapped_column(Text, nullable=True)
     employee_notes: Mapped[list] = mapped_column(JSON, default=list)
+    # fulfilment after submit: stage times, e-sign, AutoPay, technician slot, message to customer
+    order: Mapped[dict | None] = mapped_column("fulfilment", JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=now)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=now, onupdate=now)
     submitted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)

@@ -96,3 +96,10 @@ export async function documentUrl(id: number, who: Who = "customer"): Promise<st
 }
 
 export const apiBase = BASE;
+
+/** Protected image (or file) fetched with the session token and turned into an object URL for <img>. */
+export async function authBlobUrl(path: string, who: Who = "employee"): Promise<string> {
+  const res = await fetch(`${BASE}${path}`, { headers: { Authorization: `Bearer ${ls.get(K[who].token)}` } });
+  if (!res.ok) throw new ApiError("Could not load file", res.status);
+  return URL.createObjectURL(await res.blob());
+}

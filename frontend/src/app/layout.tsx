@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "@fontsource-variable/plus-jakarta-sans";
+import "@fontsource-variable/sora";
 import "@fontsource/noto-sans-devanagari/400.css";
 import "@fontsource/noto-sans-devanagari/600.css";
 import "@fontsource/noto-sans-telugu/400.css";
@@ -20,7 +21,7 @@ import "./globals.css";
 import I18nProvider from "@/i18n/I18nProvider";
 
 export const metadata: Metadata = {
-  title: "SYNC · Business connectivity, made simple",
+  title: "Airtel Vyapaar Connect · Your business, connected in one sitting",
   description: "Prototype: describe your business, get the right connectivity plan, verify and submit online. Not an official Airtel service.",
 };
 export const viewport: Viewport = { themeColor: "#e40000", width: "device-width", initialScale: 1 };

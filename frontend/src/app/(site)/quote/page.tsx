@@ -8,6 +8,7 @@ import { api } from "@/lib/api";
 import { inr, inrRange } from "@/lib/format";
 import { useApi } from "@/components/hooks";
 import { useCodeText } from "@/components/codes";
+import ProductArt from "@/components/ProductArt";
 import { QtyStepper } from "@/components/ProductCard";
 import QuoteSummary from "@/components/QuoteSummary";
 import { Stepper } from "@/components/SiteChrome";
@@ -66,9 +67,10 @@ export default function QuotePage() {
                   <motion.div key={i.product_id} layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: -30 }}
                     className="card p-5">
                     <div className="flex flex-wrap items-start justify-between gap-4">
+                      <ProductArt id={i.product_id} category={p?.category} />
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
-                          <h3 className="text-[17px] font-bold">{i.name}</h3>
+                          <h3 className="font-display text-[17px] font-semibold">{i.name}</h3>
                           {i.status !== "eligible" && <Status s={i.status} />}
                         </div>
                         <div className="mt-0.5 text-sm text-muted">

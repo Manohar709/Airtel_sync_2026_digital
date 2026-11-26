@@ -9,7 +9,7 @@ import { ApiError } from "@/lib/api";
 export const cn = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(" ");
 
 type BtnProps = {
-  variant?: "primary" | "secondary" | "ghost" | "dark" | "link";
+  variant?: "primary" | "secondary" | "ghost" | "dark" | "light" | "outlineLight" | "link";
   size?: "sm" | "md" | "lg";
   href?: string;
   loading?: boolean;
@@ -18,13 +18,15 @@ type BtnProps = {
 } & Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "className" | "children">;
 
 const VARIANTS = {
-  primary: "bg-brand text-white hover:bg-brand-600 active:bg-brand-700 shadow-[0_8px_20px_-10px_rgb(228_0_0/0.7)]",
-  secondary: "bg-white text-ink border border-line-2 hover:border-ink-2/40 hover:bg-surface",
+  primary: "bg-brand text-white hover:bg-brand-600 active:bg-brand-700 shadow-[var(--shadow-brand)] hover:-translate-y-px",
+  secondary: "bg-white text-ink border border-line-2 hover:border-ink/30 hover:bg-surface",
   ghost: "text-ink-2 hover:bg-surface-2",
-  dark: "bg-ink text-white hover:bg-ink-2",
+  dark: "bg-ink text-white hover:bg-night-2",
+  light: "bg-white text-ink hover:bg-brand-50 shadow-[0_10px_24px_-12px_rgb(0_0_0/0.5)] hover:-translate-y-px",
+  outlineLight: "border border-white/35 text-white hover:bg-white/10",
   link: "text-brand hover:text-brand-700 underline-offset-4 hover:underline !px-0 !h-auto",
 };
-const SIZES = { sm: "h-9 px-3.5 text-sm", md: "h-11 px-5 text-[15px]", lg: "h-13 px-7 text-base" };
+const SIZES = { sm: "h-9 px-4 text-sm", md: "h-11 px-5 text-[15px]", lg: "h-[52px] px-7 text-base" };
 
 export function Button({ variant = "primary", size = "md", href, loading, className, children, disabled, ...rest }: BtnProps) {
   const cls = cn("inline-flex items-center justify-center gap-2 rounded-full font-semibold transition-all duration-150",
@@ -44,10 +46,11 @@ const TONE: Record<string, string> = {
 };
 export const STATUS_TONE: Record<string, keyof typeof TONE> = {
   verified: "ok", ok: "ok", eligible: "ok", ready_for_activation: "ok", resolved: "ok",
-  action_required: "bad", fail: "bad", not_eligible: "bad",
-  needs_manual_review: "warn", prerequisite_required: "warn", missing: "warn", awaiting_customer: "warn", open: "brand",
+  action_required: "warn", fail: "bad", not_eligible: "bad",
+  needs_manual_review: "info", prerequisite_required: "warn", missing: "warn", awaiting_customer: "warn", open: "brand",
   pending: "neutral", unable_to_verify: "neutral", draft: "neutral", closed: "neutral",
   submitted: "info", in_review: "info", in_progress: "info",
+  approved: "ok", confirmed: "ok", scheduled: "info", installed: "info", live: "ok",
 };
 
 export function Pill({ tone = "neutral", children, className }: { tone?: keyof typeof TONE; children: React.ReactNode; className?: string }) {
@@ -101,15 +104,20 @@ export function ErrorNote({ error, onRetry }: { error: unknown; onRetry?: () => 
 export function Dialog({ open, onClose, title, children, wide }: { open: boolean; onClose: () => void; title: string; children: React.ReactNode; wide?: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
   const t = useTranslations("nav");
+  const close = useRef(onClose);
+  close.current = onClose;
+  // Runs only when the dialog opens/closes. (It used to depend on onClose, which changes on every render, so each
+  // keystroke re-ran it and moved focus to the close button.) Focus goes to the first field, not the close button.
   useEffect(() => {
     if (!open) return;
     const prev = document.activeElement as HTMLElement | null;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && close.current();
     document.addEventListener("keydown", onKey);
-    setTimeout(() => ref.current?.querySelector<HTMLElement>("input,textarea,button")?.focus(), 50);
+    const id = setTimeout(() => (ref.current?.querySelector<HTMLElement>("input,textarea") ||
+      ref.current?.querySelector<HTMLElement>("[data-autofocus],button"))?.focus(), 50);
     document.body.style.overflow = "hidden";
-    return () => { document.removeEventListener("keydown", onKey); document.body.style.overflow = ""; prev?.focus?.(); };
-  }, [open, onClose]);
+    return () => { clearTimeout(id); document.removeEventListener("keydown", onKey); document.body.style.overflow = ""; prev?.focus?.(); };
+  }, [open]);
   return (
     <AnimatePresence>
       {open && (
@@ -153,10 +161,14 @@ export function PageHeader({ eyebrow, title, subtitle, children }: { eyebrow?: s
   );
 }
 
+function Sparkle() {
+  return <svg viewBox="0 0 24 24" className="h-6 w-6" fill="currentColor" aria-hidden><path d="M12 2l1.8 6.2L20 10l-6.2 1.8L12 18l-1.8-6.2L4 10l6.2-1.8z" /></svg>;
+}
+
 export function Empty({ title, body, action }: { title: string; body?: string; action?: React.ReactNode }) {
   return (
     <div className="card flex flex-col items-center px-6 py-14 text-center">
-      <div className="mb-4 h-12 w-12 rounded-2xl bg-brand-50 ring-8 ring-brand-50/50" />
+      <div className="mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-brand-gradient text-white shadow-[var(--shadow-brand)]"><Sparkle /></div>
       <div className="h2">{title}</div>
       {body && <p className="mt-1 max-w-sm text-muted">{body}</p>}
       {action && <div className="mt-5">{action}</div>}

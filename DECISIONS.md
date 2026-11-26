@@ -41,3 +41,28 @@ Next.js 16 (TypeScript, Tailwind v4) app with a public customer site and an `/em
 - Application keeps conversation, cart, quote snapshot, KYC state and notes as JSON on one row; events in `application_events`.
 - In-memory rate limiting (per process). No email/SMS notifications, no password reset, no payment, no e-sign, no GIS feasibility.
 - Needs confirmation before real use: DPDP/legal compliance, retention periods, tax treatment, document requirements, translation quality, speech-service data terms.
+
+## Phase 3 (supersedes the KYC and flow rules above where they differ)
+- **Smart KYC verdict:** every check is ok / ask (customer can fix now) / hold (a person checks). One verdict per application: hold if any hold, else ask if anything to fix or upload, else pass. A clean application (pass) is **approved automatically at submit**; only holds reach the team.
+- **Answer key for the 12 specimens** (asserted by `backend/tests/test_kyc_specimens.py`): K01 hold (cancelled GSTIN, blank Udyam number), K02 pass (7 degree tilt straightened), K03 pass, K04 ask (blurred), K05 ask (Udyam certificate missing), K06 hold (GSTIN digit changed, checksum fails, registry suggests the real one), K07 hold (legal name word changed), K08 pass (0/O look-alike), K09 pass, K10 pass (I/J look-alike), K11 ask (bill 257 days old), K12 pass.
+- **Look-alike repair** only swaps OCR/print look-alikes (0/O/Q/D, 1/I/J/L, 5/S, 8/B, 2/Z, 6/G) and is accepted only if the checksum passes AND the registry has the result; any other difference is a real change. A checksum failure printed on the certificate = hold ("may be altered"); typed by the customer = ask ("did you mean").
+- **Name check** compares words (OCR slips within a word tolerated); a changed distinctive word is a hold and shows which word changed.
+- **Signatory:** the ID holder named in the registry legal name (proprietor) or a signing role (owner, partner, director, ...) passes; signing is confirmed by OTP e-sign. Other roles go to the team.
+- **No GST / Udyam:** not sent to the team by default. ID (or DigiLocker) and bill must agree with each other and with the city given in chat; the registry is searched by name and city so a cancelled GSTIN cannot be hidden; the technician confirms the address at installation. GSTIN-only products stay blocked.
+- **Mobile OTP** is required for everyone (unreachable or wrong numbers lost 1,124 leads). **DigiLocker** is simulated: name + last 4 Aadhaar digits + OTP; the full Aadhaar number is never accepted or stored. OTP codes are hashed, expire in 10 minutes, 5 attempts; with `DEMO_MODE=true` the code is shown on screen because there is no SMS gateway.
+- **OCR performance:** PaddleOCR loads at startup in a background thread; inference runs in a worker thread (the API never blocks) and one at a time; results are cached by image SHA-256 (specimen results pre-seeded from `tests/ocr_results.json`).
+- **Order lifecycle** (`backend/app/orders.py`): submitted -> approved -> confirmed (customer OTP e-sign + UPI AutoPay mandate, simulated; a failed first payment holds the order) -> scheduled (technician, date, window) -> installed -> live; side states in_review, awaiting_customer (team message shown to the customer), closed. Per-service ETA = confirmation date + `typical_install_days`; 21-day SLA flag.
+- **Employee console:** one urgency-ranked work queue (call-backs, verification holds, installations at risk first) with waiting time, one-tap call (`tel:`) and WhatsApp (`wa.me`) links, call outcome logging, and a context-aware next-action panel. WhatsApp Business API is not used (needs Meta verification and paid templates); share links only.
+- **One recommended plan** replaces Basic/Recommended/Advanced: the recommended bundle plus optional add-ons that build on it, and a "lower-cost version" switch. Every change is priced by the backend.
+- **Privacy:** phone, email, GSTIN, PAN, Aadhaar and Udyam numbers are redacted from any text sent to Gemini; the advisor sends only the last 8 turns.
+
+## Phase 4: UI and clean-up
+- Visual system: Airtel red used with restraint plus a crimson-to-wine brand gradient and warm charcoal; Sora for headings, Plus Jakarta Sans for text (Noto for Indic scripts). Product artwork is drawn in code per category (no Airtel imagery or logo).
+- Header: slim dark utility bar (audience, language, Staff login) above the main navigation; dark footer with the privacy summary.
+- Demo-only controls removed from customer screens: the K01-K12 loader moved to the staff console ("KYC check", read-only, nothing stored); the payment-failure simulation is no longer shown (backend logic kept and tested); one-time codes appear as an SMS-style notification because there is no SMS gateway (DEMO_MODE).
+- Chatbot: quick-reply taps are merged deterministically and answered with the next question without calling the model (no repetition, fewer tokens); typed messages acknowledge only what is new; the recommendation explanation talks about the single recommended plan.
+
+## Final scope (supersedes earlier language and staff-console notes)
+- Languages offered: English, Hindi and Telugu only (UI, advisor replies, voice). Other locales were removed from the UI and the backend.
+- Staff console kept simple: work queue, KYC check, case page with one next-action panel. The AI brief, internal notes/history panel and call-outcome logging were removed from the UI. "Return to customer" sends an automatic message built from the held checks (no typing).
+- Call and WhatsApp buttons on the staff side are a demo: they open the employee's phone dialer or WhatsApp (tel: / wa.me) and are not integrated with a call centre or the WhatsApp Business API. The customer-side WhatsApp share was removed.

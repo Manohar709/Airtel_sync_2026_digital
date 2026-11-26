@@ -6,7 +6,8 @@ from .config import settings
 from .db import SessionLocal, migrate
 from . import models  # noqa: F401  (register tables)
 from .routes import router
-from .kyc import purge_expired
+import threading
+from .kyc import purge_expired, warmup
 from .auth import ensure_employee
 
 logging.basicConfig(level=logging.INFO)
@@ -19,12 +20,13 @@ async def lifespan(app: FastAPI):
     with SessionLocal() as db:
         ensure_employee(db)
         purge_expired(db)  # retention: remove documents older than UPLOAD_RETENTION_DAYS
+    threading.Thread(target=warmup, daemon=True).start()  # load OCR in the background
     if not settings.employee_email or not settings.employee_password:
         log.warning("EMPLOYEE_EMAIL / EMPLOYEE_PASSWORD not set in .env: employee login is disabled")
     yield
 
 
-app = FastAPI(title="Airtel SYNC prototype API", lifespan=lifespan)
+app = FastAPI(title="Airtel Vyapaar Connect prototype API", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=[o.strip() for o in settings.cors_origins.split(",")],
                    allow_methods=["*"], allow_headers=["*"])
 app.include_router(router)

@@ -5,6 +5,7 @@ import { inr, inrRange } from "@/lib/format";
 import { useCodeText } from "./codes";
 import { useDescriptions } from "./hooks";
 import { Button, Status, cn } from "./ui";
+import ProductArt from "./ProductArt";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type P = any;
@@ -47,10 +48,11 @@ export default function ProductCard({ p, names, status, checks, why, inCart, onT
   const description = desc?.descriptions?.[p.product_id] || p.description;
   return (
     <article className={cn("card flex flex-col p-5 transition hover:shadow-[var(--shadow-lift)]", inCart && "ring-2 ring-brand/70")}>
-      <div className="flex items-start justify-between gap-3">
-        <div>
+      <div className="flex items-start gap-3">
+        <ProductArt id={p.product_id} category={p.category} />
+        <div className="min-w-0 flex-1">
           <div className="text-xs font-semibold text-muted">{t.has(`categories.${p.category}`) ? t(`categories.${p.category}`) : p.category}</div>
-          <h3 className="mt-0.5 text-[17px] font-bold leading-snug tracking-[-0.01em]">{p.name}</h3>
+          <h3 className="mt-0.5 font-display text-[17px] font-semibold leading-snug tracking-[-0.01em]">{p.name}</h3>
         </div>
         {status && <Status s={status} />}
       </div>

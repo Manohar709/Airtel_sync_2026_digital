@@ -1,11 +1,18 @@
 # Project status
 
+## Phase 3 checkpoint
+- Smart KYC rebuilt (verdict pass / ask / hold, strict look-alike repair, registry suggestion, word-level name check, signatory roles, self-fixed notes, non-GST path with registry search). `python -m tests.test_kyc_specimens` runs the 12 specimen applicants against the answer key.
+- Mobile OTP + simulated DigiLocker; OCR non-blocking, warmed at startup, cached by image hash; demo loader K01-K12 on the Verify page.
+- Order lifecycle with auto-approval, OTP e-sign + AutoPay (simulated), technician scheduling, installed, live; per-service ETAs; customer dashboard (My orders) with the one next action; employee work queue with call / WhatsApp / outcome logging.
+- One recommended plan with add-ons; Review is read-only and only reachable when verification allows submitting; chat typing bug fixed, side panel removed, "Talk to a person" always visible; PII redaction before Gemini.
+- Tests: `python -m tests.test_api` (now includes OTP, DigiLocker, full order lifecycle) and core tests pass.
+
 ## Phase 2 checkpoint (in progress)
 
 ### Done
 - Backend: guest sessions (signed guest token), customer sign-up/login with guest merge, single employee from `.env`, "My orders" + `application_events` timeline + resume, live help requests (guests give name + phone) visible to employees immediately, queue-first employee API, KYC modes (GSTIN / Udyam / both / neither), message codes for localisation, Gemini language-aware advisor + structured quick replies, voice transcription endpoint, cached catalogue/conversation translation, Gemini retries, idempotent PostgreSQL migration (verified on `Airtel_Sync`).
 - KYC OCR: PaddleOCR 3.7 installed and working (`enable_mkldnn=False`), watermark removal, de-skew for tilted scans, OCR-tolerant GSTIN/Udyam comparison.
-- Frontend rebuilt: landing, advisor (chips, voice, read-aloud, live panel), plans (3 tiers + comparison), catalogue, quote (+/- steppers, sticky summary), account (sign in / create), verify, review, my orders, help dialog everywhere, employee login + console (queues, detail, help, KYC, translation, AI). next-intl with 10 locales; type-check clean.
+- Frontend rebuilt: landing, advisor (chips, voice, read-aloud, live panel), plans (3 tiers + comparison), catalogue, quote (+/- steppers, sticky summary), account (sign in / create), verify, review, my orders, help dialog everywhere, employee login + console (queues, detail, help, KYC, translation, AI). next-intl (now English, Hindi, Telugu; see DECISIONS "Final scope"); type-check clean.
 - Tests: `python -m tests.test_api` (guest, merge, help, KYC modes, roles, orders) and core tests pass.
 - Docs: DECISIONS.md, HLD.md, LLD (customer-flow, ai-workflow, kyc-workflow, database) updated.
 

@@ -1,0 +1,54 @@
+C:\Users\sampa\AppData\Local\Programs\Python\Python310\lib\site-packages\requests\__init__.py:113: RequestsDependencyWarning: urllib3 (2.5.0) or chardet (7.7.0)/charset_normalizer (3.4.3) doesn't match a supported version!
+  warnings.warn(
+[32mCreating model: ('PP-OCRv6_medium_det', None, None)[0m
+[32mModel files already exist. Using cached files. To redownload, please delete the directory manually: `C:\Users\sampa\.paddlex\official_models\PP-OCRv6_medium_det`.[0m
+[32mCreating model: ('PP-OCRv6_medium_rec', None, None)[0m
+[32mModel files already exist. Using cached files. To redownload, please delete the directory manually: `C:\Users\sampa\.paddlex\official_models\PP-OCRv6_medium_rec`.[0m
+K01_address_proof.png ok 93 s
+K01_gst_certificate.png ok 128 s
+K01_signatory_id.png ok 145 s
+K01_udyam_certificate.png ok 179 s
+K02_address_proof.png ok 214 s
+K02_gst_certificate.png ok 257 s
+K02_signatory_id.png ok 275 s
+K02_udyam_certificate.png ok 309 s
+K03_address_proof.png ok 341 s
+K03_gst_certificate.png ok 373 s
+K03_signatory_id.png ok 389 s
+K03_udyam_certificate.png ok 422 s
+K04_address_proof.png ok 457 s
+K04_gst_certificate.png ok 487 s
+K04_signatory_id.png ok 503 s
+K04_udyam_certificate.png ok 539 s
+K05_address_proof.png ok 574 s
+K05_gst_certificate.png ok 609 s
+K05_signatory_id.png ok 625 s
+K06_address_proof.png ok 659 s
+K06_gst_certificate.png ok 694 s
+K06_signatory_id.png ok 711 s
+K06_udyam_certificate.png ok 744 s
+K07_address_proof.png ok 778 s
+K07_gst_certificate.png ok 811 s
+K07_signatory_id.png ok 826 s
+K07_udyam_certificate.png ok 857 s
+K08_address_proof.png ok 891 s
+K08_gst_certificate.png ok 927 s
+K08_signatory_id.png ok 943 s
+K08_udyam_certificate.png ok 977 s
+K09_address_proof.png ok 1013 s
+K09_gst_certificate.png ok 1050 s
+K09_signatory_id.png ok 1068 s
+K09_udyam_certificate.png ok 1102 s
+K10_address_proof.png ok 1135 s
+K10_gst_certificate.png ok 1169 s
+K10_signatory_id.png ok 1186 s
+K10_udyam_certificate.png ok 1218 s
+K11_address_proof.png ok 1249 s
+K11_gst_certificate.png ok 1281 s
+K11_signatory_id.png ok 1296 s
+K11_udyam_certificate.png ok 1327 s
+K12_address_proof.png ok 1360 s
+K12_gst_certificate.png ok 1393 s
+K12_signatory_id.png ok 1409 s
+K12_udyam_certificate.png ok 1442 s
+done 47 of 47

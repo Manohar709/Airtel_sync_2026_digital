@@ -8,7 +8,7 @@ import { useLocaleSwitch } from "@/i18n/I18nProvider";
 import { api, getUser } from "@/lib/api";
 import { cn } from "./ui";
 
-export default function LanguageSwitcher({ dark }: { dark?: boolean }) {
+export default function LanguageSwitcher({ dark, compact }: { dark?: boolean; compact?: boolean }) {
   const { locale, setLocale } = useLocaleSwitch();
   const t = useTranslations("nav");
   const [open, setOpen] = useState(false);
@@ -26,15 +26,16 @@ export default function LanguageSwitcher({ dark }: { dark?: boolean }) {
   return (
     <div ref={ref} className="relative">
       <button onClick={() => setOpen(!open)} aria-haspopup="listbox" aria-expanded={open} aria-label={t("language")}
-        className={cn("inline-flex h-10 items-center gap-2 rounded-full px-3 text-sm font-semibold transition",
-          dark ? "text-white/90 hover:bg-white/10" : "text-ink-2 hover:bg-surface-2")}>
-        <Languages className="h-4 w-4" aria-hidden />
+        className={cn("inline-flex items-center gap-2 rounded-full font-semibold transition",
+          compact ? "h-7 px-2.5 text-xs text-white/80 hover:bg-white/10 hover:text-white" : "h-10 px-3 text-sm",
+          !compact && (dark ? "text-white/90 hover:bg-white/10" : "text-ink-2 hover:bg-surface-2"))}>
+        <Languages className={compact ? "h-3.5 w-3.5" : "h-4 w-4"} aria-hidden />
         <span>{localeInfo(locale).native}</span>
       </button>
       <AnimatePresence>
         {open && (
           <motion.ul role="listbox" initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
-            className="absolute right-0 z-50 mt-2 grid w-64 grid-cols-2 gap-1 rounded-2xl border border-line bg-white p-2 shadow-[var(--shadow-lift)]">
+            className="absolute right-0 z-50 mt-2 grid w-48 grid-cols-1 gap-1 rounded-2xl border border-line bg-white p-2 shadow-[var(--shadow-lift)]">
             {LOCALES.map((l) => (
               <li key={l.code}>
                 <button role="option" aria-selected={l.code === locale} onClick={() => choose(l.code)}

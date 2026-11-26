@@ -7,35 +7,29 @@ import re
 from datetime import datetime, timedelta
 from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Request
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from . import ai, kyc
+from . import orders as om
 from .auth import (Actor, actor, client_key, create_guest_token, create_token, current_user, customer_only,
                    employee_only, guest_id_from, hash_password, rate_limit, verify_password)
 from .catalogue import (Requirements, evaluate, infer_segment, SEGMENT_CODE, load_products, lookup_city_tier,
                         product_details, default_quantity, NEED_LABELS)
 from .config import settings
 from .db import get_db
-from .models import Application, ApplicationEvent, Document, RefHistoricalLead, User
+from .models import Application, ApplicationEvent, Document, RefGstin, RefHistoricalLead, RefUdyam, User
 from .quote import build_quote
-from .recommend import recommend
+from .recommend import recommend, effective_needs, has_preview
 
 router = APIRouter(prefix="/api")
 
-# Application status state machine (backend-controlled).
-TRANSITIONS = {
-    "draft": {"submitted"},
-    "submitted": {"in_review", "awaiting_customer", "closed"},
-    "in_review": {"awaiting_customer", "ready_for_activation", "closed"},
-    "awaiting_customer": {"in_review", "closed"},
-    "ready_for_activation": {"closed", "in_review"},
-    "closed": set(),
-}
-STATUS_LABELS = {"draft": "Draft", "submitted": "Submitted", "in_review": "In review",
-                 "awaiting_customer": "Awaiting customer", "ready_for_activation": "Ready for activation", "closed": "Closed"}
-EDITABLE = ("draft", "awaiting_customer")
-LANG_CODES = set(ai.LANGS)
+# Application status state machine (backend-controlled): see orders.py
+TRANSITIONS = om.EMPLOYEE_TRANSITIONS
+STATUS_LABELS = om.STATUS_LABELS
+EDITABLE = om.EDITABLE
+LANG_CODES = {"en", "hi", "te"}  # languages offered in the UI
 PHONE_RE = re.compile(r"^(\+?91[\s-]?)?[6-9]\d{9}$")
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
@@ -104,14 +98,28 @@ def kyc_result(db: Session, app: Application, products=None) -> dict:
     gp = [products[c["product_id"]].name for c in app.cart
           if c["product_id"] in products and products[c["product_id"]].requires_gstin]
     state = app.kyc or {}
-    res = kyc.evaluate_kyc(db, state, docs, gp, req_of(app).business_type)
+    req = req_of(app)
+    res = kyc.evaluate_kyc(db, state, docs, gp, req.business_type, req.city)
     res["consent"] = bool(state.get("consent"))
-    res["mode"] = state.get("mode")
+    res["mode"] = res.get("mode") or state.get("mode")
+    res["demo_mode"] = settings.demo_mode
     res["business_name"] = state.get("business_name")
-    res["gstin_masked"], res["udyam_masked"] = kyc.mask(state.get("gstin")), kyc.mask(state.get("udyam"))
+    res["gstin_masked"] = kyc.mask(res.pop("_gstin", None) or state.get("gstin"))
+    res["udyam_masked"] = kyc.mask(res.pop("_udyam", None) or state.get("udyam"))
     res["documents"] = [doc_view(d) for d in docs]
     res["gstin_products"] = gp
+    res["phone_verified"] = bool(state.get("phone_verified"))
+    res["phone_masked"] = state.get("phone_masked")
+    res["digilocker"] = {k: v for k, v in (state.get("digilocker") or {}).items() if k in ("name", "last4", "at")} or None
+    res["can_submit"] = can_submit(res, app)
     return res
+
+
+def can_submit(k: dict, app: Application) -> bool:
+    """Submit when nothing is left for the customer to fix (holds go to our team), or help was requested."""
+    if not k.get("consent") or not k.get("mode") or any(c["code"] == "doc.not_uploaded" for c in k["checks"]):
+        return False
+    return k["verdict"] in ("pass", "hold") or bool(app.help_requested)
 
 
 def events_of(db: Session, app: Application) -> list[dict]:
@@ -120,9 +128,9 @@ def events_of(db: Session, app: Application) -> list[dict]:
 
 
 def expected_activation(app: Application, quote: dict | None) -> str | None:
-    if app.status in ("submitted", "in_review", "ready_for_activation") and app.submitted_at and quote:
-        return (app.submitted_at + timedelta(days=quote.get("max_install_days", 0))).date().isoformat()
-    return None
+    if app.status in ("draft", "closed") or not quote:
+        return None
+    return om.tracking(app, quote, [])["expected_live"]
 
 
 def app_view(db: Session, app: Application) -> dict:
@@ -133,11 +141,13 @@ def app_view(db: Session, app: Application) -> dict:
         "id": app.id, "status": app.status, "language": app.language, "is_guest": app.user_id is None,
         "messages": app.messages, "requirements": req.model_dump(), "missing": ai.missing_fields(req),
         "ready": not ai.missing_fields(req) and bool(req.needs),
+        "has_plan": has_preview(req),
         "cart": app.cart, "quote": quote,
         "help": {"requested": app.help_requested, "status": app.help_status, "note": app.help_note, "at": app.help_at},
         "submitted_at": app.submitted_at,
         "kyc_overall": kyc_result(db, app, products)["overall"] if app.kyc else "pending",
         "events": events_of(db, app), "expected_activation": expected_activation(app, app.quote or quote),
+        "tracking": om.tracking(app, app.quote or quote, []) if app.status != "draft" else None,
     }
 
 
@@ -265,21 +275,21 @@ def advisor_message(body: Msg, act: Actor = Depends(actor), db: Session = Depend
     reply, new, asked, used_llm = ai.advisor_turn(app.messages or [], req_of(app), text, cities, types, lang, body.answer)
     new.city_tier = lookup_city_tier(db, new.city)  # derived from dataset, never from the LLM
     ready = not ai.missing_fields(new) and bool(new.needs)
-    if ready:
+    if ready:  # complete: the model may explain the final plan
         products = load_products(db)
         rec = recommend(products, new, segment(db, new))
-        summary = {"tiers": {k: {"items": [{"name": products[c["product_id"]].name, "qty": c["quantity"]} for c in v["cart"]],
-                                 "monthly_estimate_mid": v["quote"]["monthly"]["mid"], "within_budget": v["within_budget"]}
-                             for k, v in rec["tiers"].items()}, "unmet": [u["label"] for u in rec["unmet_needs"]],
-                   "pending_checks": sorted({c["detail"] for i in rec["items"] for c in i["checks"]
-                                             if c["status"] in ("pending", "missing")})}
+        tier = rec["tiers"].get("recommended")
+        summary = {"plan": tier and {"items": [{"name": products[c["product_id"]].name, "qty": c["quantity"]} for c in tier["cart"]],
+                                     "monthly_estimate_mid": tier["quote"]["monthly"]["mid"], "within_budget": tier["within_budget"]},
+                   "unmet": [u["label"] for u in rec["unmet_needs"]]}
         expl = ai.explain_recommendation(new, summary, lang) if used_llm else None
         if expl:
             reply = expl
     now = datetime.utcnow().isoformat()
     app.messages = (app.messages or []) + [
         {"role": "user", "text": text or str((body.answer or {}).get("label") or (body.answer or {}).get("value")), "at": now},
-        {"role": "assistant", "text": reply, "asked": asked, "fallback": not used_llm, "ready": ready, "at": now}]
+        {"role": "assistant", "text": reply, "asked": asked, "fallback": used_llm is False, "quick": used_llm is None,
+         "ready": ready, "at": now}]
     app.requirements = new.model_dump()
     db.commit()
     return {"reply": reply, "llm": used_llm, "recommendation_ready": ready, "application": app_view(db, app)}
@@ -294,15 +304,31 @@ def advisor_reset(act: Actor = Depends(actor), db: Session = Depends(get_db)):
     return app_view(db, app)
 
 
+def plan_for(db: Session, req: Requirements, products=None) -> dict:
+    """Recommendation for what is known so far. Missing needs are filled from what similar businesses asked for;
+    unknown size or city stay 'to be confirmed' in the eligibility checks."""
+    products = products or load_products(db)
+    needs, source = effective_needs(db, req)
+    rec = recommend(products, Requirements(**{**req.model_dump(), "needs": needs}), segment(db, req))
+    rec["needs_used"], rec["needs_source"] = needs, source
+    # until the profile is complete, start from entry-level options; answers upgrade it to the best fit
+    complete = not ai.missing_fields(req) and bool(req.needs)
+    rec["start_tier"] = "recommended" if complete or "basic" not in rec["tiers"] else "basic"
+    return rec
+
+
 @router.get("/recommendations")
 def recommendations(act: Actor = Depends(actor), db: Session = Depends(get_db)):
     app = current_app(db, act)
     req, products = req_of(app), load_products(db)
-    rec = recommend(products, req, segment(db, req))
-    ids = {i["product_id"] for i in rec["items"]} | {pid for t in rec["tiers"].values() for pid in t["reasons"]}
+    rec = plan_for(db, req, products)
+    ids = ({i["product_id"] for i in rec["items"]} | {pid for t in rec["tiers"].values() for pid in t["reasons"]}
+           | {a["product_id"] for a in rec["addons"]})
     rec["products"] = {pid: product_details(products[pid], products) for pid in ids}
     rec["names"] = {p.product_id: p.name for p in products.values()}
     rec["ready"] = not ai.missing_fields(req) and bool(req.needs)
+    rec["has_plan"] = has_preview(req)
+    rec["missing"] = ai.missing_fields(req)
     return rec
 
 
@@ -358,6 +384,30 @@ def apply_tier(tier: str, act: Actor = Depends(actor), db: Session = Depends(get
     app.cart = rec["tiers"][tier]["cart"]
     db.commit()
     return {"cart": app.cart, "quote": build_quote(products, app.cart, req)}
+
+
+class PlanChoice(BaseModel):
+    base: str = "recommended"  # recommended | basic (lower-cost version of the same plan)
+    addons: list[str] = []
+
+
+@router.post("/cart/plan")
+def choose_plan(body: PlanChoice, act: Actor = Depends(actor), db: Session = Depends(get_db)):
+    """Recommended plan (or its lower-cost version) plus the add-ons the customer switched on."""
+    if body.base not in ("recommended", "basic"):
+        raise HTTPException(422, "Unknown plan")
+    app = current_app(db, act)
+    require_editable(app)
+    req, products = req_of(app), load_products(db)
+    rec = plan_for(db, req, products)
+    if body.base not in rec["tiers"]:
+        raise HTTPException(422, rec["no_match_message"] or "No plan available")
+    allowed = {a["product_id"]: a["quantity"] for a in rec["addons"]}
+    cart = list(rec["tiers"][body.base]["cart"])
+    cart += [{"product_id": pid, "quantity": allowed[pid]} for pid in dict.fromkeys(body.addons) if pid in allowed]
+    app.cart = cart
+    db.commit()
+    return {"cart": cart, "quote": build_quote(products, cart, req)}
 
 
 # ---------- help (guest or customer) ----------
@@ -440,7 +490,8 @@ def kyc_identifiers(body: Identifiers, u: User = Depends(customer_only), db: Ses
     prev = app.kyc or {}
     keep = lambda new, old: (new or "").strip().upper() or old  # blank keeps the saved value
     app.kyc = {**prev, "consent": body.consent, "mode": body.mode or prev.get("mode"),
-               "gstin": keep(body.gstin, prev.get("gstin")), "udyam": keep(body.udyam, prev.get("udyam")),
+               "gstin": kyc.normalize_gstin(keep(body.gstin, prev.get("gstin"))) or None,
+               "udyam": kyc.normalize_udyam(keep(body.udyam, prev.get("udyam"))) or None,
                "business_name": (body.business_name or "").strip()[:150] or prev.get("business_name"),
                "consent_at": prev.get("consent_at") or (datetime.utcnow().isoformat() if body.consent else None)}
     req = req_of(app)
@@ -449,6 +500,162 @@ def kyc_identifiers(body: Identifiers, u: User = Depends(customer_only), db: Ses
     elif app.kyc["mode"] == "none":
         req.has_gstin = False
     app.requirements = req.model_dump()
+    db.commit()
+    return kyc_result(db, app)
+
+
+class Consent(BaseModel):
+    consent: bool
+
+
+@router.put("/kyc/consent")
+def kyc_consent(body: Consent, u: User = Depends(customer_only), db: Session = Depends(get_db)):
+    """Consent only: registration numbers come from the uploaded certificates (nothing typed)."""
+    app = customer_app(db, u)
+    require_editable(app)
+    prev = app.kyc or {}
+    app.kyc = {**prev, "consent": body.consent, "mode": None, "gstin": None, "udyam": None,
+               "consent_at": prev.get("consent_at") or (datetime.utcnow().isoformat() if body.consent else None)}
+    db.commit()
+    return kyc_result(db, app)
+
+
+@router.post("/kyc/demo/{kid}")
+async def kyc_demo(kid: str, u: User = Depends(customer_only), db: Session = Depends(get_db)):
+    """DEMO_MODE only: load a case-pack sample applicant (K01-K12) as if the customer photographed the documents.
+    The list shows codes only; the customer sees only the result for the documents loaded into their own application."""
+    if not settings.demo_mode or not re.fullmatch(r"K(0[1-9]|1[0-2])", kid):
+        raise HTTPException(404, "Not available")
+    app = customer_app(db, u)
+    require_editable(app)
+    if not (app.kyc or {}).get("consent"):
+        raise HTTPException(403, "Consent is required before uploading documents")
+    for old in db.query(Document).filter(Document.application_id == app.id).all():
+        Path(old.path).unlink(missing_ok=True)
+        db.delete(old)
+    app.kyc = {**app.kyc, "mode": None, "gstin": None, "udyam": None, "digilocker": None}
+    db.commit()
+    folder = settings.data_path / "kyc_documents"
+    for dt in SPECIMEN_DOCS:
+        f = folder / f"{kid}_{dt}.png"
+        if f.exists():
+            await store_document(db, app, dt, f.name, f.read_bytes())
+    add_event(db, app, "sample_documents_loaded", app.status, "customer")
+    db.commit()
+    return kyc_result(db, app)
+
+
+class OtpSend(BaseModel):
+    phone: str
+
+
+class OtpVerify(BaseModel):
+    code: str = Field(min_length=6, max_length=6)
+
+
+class DigiLocker(BaseModel):
+    name: str = Field(min_length=2, max_length=100)
+    aadhaar_last4: str = Field(min_length=4, max_length=4)  # never the full Aadhaar number
+    code: str = Field(min_length=6, max_length=6)
+
+
+def _otp_issue(app: Application, purpose: str, phone: str) -> dict:
+    import hashlib, secrets
+    code = f"{secrets.randbelow(10**6):06d}"
+    app.kyc = {**(app.kyc or {}), "otp": {"purpose": purpose, "phone": phone, "tries": 0,
+               "hash": hashlib.sha256(code.encode()).hexdigest(),
+               "exp": (datetime.utcnow() + timedelta(minutes=10)).isoformat()}}
+    # No SMS gateway in the prototype: the code is shown on screen in demo mode only.
+    return {"sent": True, "to": kyc.mask(phone), "demo_code": code if settings.demo_mode else None}
+
+
+def _otp_check(app: Application, purpose: str, code: str) -> dict:
+    import hashlib
+    o = (app.kyc or {}).get("otp") or {}
+    if o.get("purpose") != purpose or datetime.utcnow() > datetime.fromisoformat(o["exp"]):
+        raise HTTPException(422, "The code has expired. Request a new one.")
+    if o.get("tries", 0) >= 5:
+        raise HTTPException(429, "Too many attempts. Request a new code.")
+    if hashlib.sha256(code.encode()).hexdigest() != o["hash"]:
+        app.kyc = {**app.kyc, "otp": {**o, "tries": o.get("tries", 0) + 1}}
+        raise HTTPException(422, "That code is not correct")
+    st = {k: v for k, v in app.kyc.items() if k != "otp"}
+    app.kyc = st
+    return o
+
+
+@router.post("/kyc/otp/send")
+def otp_send(body: OtpSend, u: User = Depends(customer_only), db: Session = Depends(get_db)):
+    app = customer_app(db, u)
+    require_editable(app)
+    phone = re.sub(r"[\s-]", "", body.phone)
+    if not PHONE_RE.match(phone):
+        raise HTTPException(422, "Enter a valid 10-digit Indian mobile number")
+    rate_limit(f"otp:{u.id}", 10)
+    out = _otp_issue(app, "phone", phone[-10:])
+    db.commit()
+    return out
+
+
+@router.post("/kyc/otp/verify")
+def otp_verify(body: OtpVerify, u: User = Depends(customer_only), db: Session = Depends(get_db)):
+    app = customer_app(db, u)
+    try:
+        o = _otp_check(app, "phone", body.code)
+    except HTTPException:
+        db.commit()
+        raise
+    app.kyc = {**app.kyc, "phone_verified": True, "phone_masked": kyc.mask(o["phone"])}
+    u.phone = o["phone"]
+    add_event(db, app, "phone_verified", app.status, "customer")
+    db.commit()
+    return kyc_result(db, app)
+
+
+@router.post("/kyc/digilocker/start")
+def digilocker_start(u: User = Depends(customer_only), db: Session = Depends(get_db)):
+    """Simulated DigiLocker / Aadhaar e-KYC: an OTP to the verified mobile stands in for the UIDAI OTP."""
+    app = customer_app(db, u)
+    require_editable(app)
+    if not (app.kyc or {}).get("phone_verified") or not u.phone:
+        raise HTTPException(422, "Confirm your mobile number first")
+    rate_limit(f"otp:{u.id}", 10)
+    out = _otp_issue(app, "digilocker", u.phone)
+    db.commit()
+    return out
+
+
+@router.post("/kyc/digilocker")
+def digilocker_verify(body: DigiLocker, u: User = Depends(customer_only), db: Session = Depends(get_db)):
+    app = customer_app(db, u)
+    require_editable(app)
+    if not body.aadhaar_last4.isdigit():
+        raise HTTPException(422, "Enter only the last 4 digits of Aadhaar")
+    try:
+        _otp_check(app, "digilocker", body.code)
+    except HTTPException:
+        db.commit()
+        raise
+    # Store only what the decision needs (name + last 4 digits + time); never the Aadhaar number (DPDP minimisation).
+    app.kyc = {**app.kyc, "digilocker": {"name": body.name.strip()[:100], "last4": body.aadhaar_last4,
+                                          "at": datetime.utcnow().isoformat(), "simulated": True}}
+    add_event(db, app, "digilocker_verified", app.status, "customer")
+    db.commit()
+    return kyc_result(db, app)
+
+
+@router.post("/kyc/use-registry-city")
+def use_registry_city(u: User = Depends(customer_only), db: Session = Depends(get_db)):
+    """Customer accepts the city of their registered business: requirements, city tier and eligibility follow it."""
+    app = customer_app(db, u)
+    require_editable(app)
+    city = kyc_result(db, app).get("registry_city")
+    if not city:
+        raise HTTPException(409, "Nothing to update")
+    req = req_of(app)
+    req.city, req.city_tier = city, lookup_city_tier(db, city)
+    app.requirements = req.model_dump()
+    add_event(db, app, "city_updated", app.status, "customer")
     db.commit()
     return kyc_result(db, app)
 
@@ -468,8 +675,13 @@ async def kyc_upload(doc_type: str = Form(...), file: UploadFile = File(...),
     if doc_type not in kyc.DOC_LABELS:
         raise HTTPException(422, "Unknown document type")
     rate_limit(f"upload:{u.id}", 60)
+    await store_document(db, app, doc_type, file.filename or "upload", await file.read())
+    return kyc_result(db, app)
+
+
+async def store_document(db: Session, app: Application, doc_type: str, filename: str, content: bytes):
     try:
-        path, quality = kyc.save_upload(app.id, file.filename or "upload", await file.read())
+        path, quality = kyc.save_upload(app.id, filename, content)
     except ValueError as e:
         raise HTTPException(422, str(e))
     for old in db.query(Document).filter(Document.application_id == app.id, Document.doc_type == doc_type).all():
@@ -477,12 +689,12 @@ async def kyc_upload(doc_type: str = Form(...), file: UploadFile = File(...),
         db.delete(old)
     ex = {"available": False, "lines": [], "error": "Skipped: image too blurry or small"}
     if not (quality["blurry"] or quality["low_resolution"]):
-        ex = kyc.extract_text(path)
+        # OCR runs in a worker thread so the server stays responsive
+        ex = await run_in_threadpool(kyc.extract_cached, path, kyc.image_hash(content))
         ex["fields"] = kyc.parse_fields(doc_type, ex.get("lines", []))
-    db.add(Document(application_id=app.id, doc_type=doc_type, filename=Path(file.filename or "upload").name[:150],
+    db.add(Document(application_id=app.id, doc_type=doc_type, filename=Path(filename).name[:150],
                     path=path, extracted=ex, quality=quality))
     db.commit()
-    return kyc_result(db, app)
 
 
 @router.delete("/kyc/documents/{doc_id}")
@@ -521,17 +733,25 @@ def submit(u: User = Depends(customer_only), db: Session = Depends(get_db)):
     q = build_quote(products, app.cart, req) if app.cart else None
     if not q or not q["valid"]:
         raise HTTPException(422, "Your quote has unresolved issues: " + "; ".join((q or {"issues": ["No products selected"]})["issues"]))
+    core = [f for f in ai.missing_fields(req) if f in ai.CORE]
+    if core:
+        raise HTTPException(422, "Before ordering, please tell the advisor: " + ", ".join(f.replace("_", " ") for f in core))
     k = kyc_result(db, app, products)
     if not k["consent"] or not k.get("mode"):
         raise HTTPException(422, "Complete the verification step (consent and registration type) first")
     missing_docs = [c for c in k["checks"] if c["code"] == "doc.not_uploaded"]
     if missing_docs:
         raise HTTPException(422, "Please upload: " + ", ".join(c["label"] for c in missing_docs))
-    if k["overall"] == "action_required" and not app.help_requested:
+    if not k["can_submit"]:
         raise HTTPException(422, "Some verification items need your action. Fix them or request help from our team.")
-    app.quote, app.status, app.submitted_at = q, "submitted", datetime.utcnow()
-    app.kyc = {**app.kyc, "snapshot": {"overall": k["overall"], "checks": k["checks"], "registry": k["registry"]}}
+    app.quote, app.submitted_at = q, datetime.utcnow()
+    app.kyc = {**app.kyc, "snapshot": {"overall": k["overall"], "verdict": k["verdict"], "checks": k["checks"],
+                                       "registry": k["registry"]}}
+    om.set_stage(app, "submitted")
     add_event(db, app, "submitted", "submitted", "customer")
+    if k["verdict"] == "pass":  # nothing for a person to check: approved straight away
+        om.set_stage(app, "approved")
+        add_event(db, app, "auto_approved", "approved", "system")
     db.commit()
     return app_view(db, app)
 
@@ -552,8 +772,65 @@ def orders(u: User = Depends(customer_only), db: Session = Depends(get_db)):
                     "created_at": a.created_at, "updated_at": a.updated_at, "submitted_at": a.submitted_at,
                     "help": {"requested": a.help_requested, "status": a.help_status},
                     "events": events_of(db, a), "expected_activation": expected_activation(a, q),
-                    "editable": a.status in EDITABLE})
+                    "editable": a.status in EDITABLE,
+                    "tracking": om.tracking(a, q, []) if a.status != "draft" else None,
+                    "kyc_verdict": ((a.kyc or {}).get("snapshot") or {}).get("verdict")})
     return {"orders": out}
+
+
+def own_order(db: Session, u: User, app_id: int) -> Application:
+    a = db.get(Application, app_id)
+    if not a or a.user_id != u.id:
+        raise HTTPException(404, "Order not found")
+    return a
+
+
+class Confirm(BaseModel):
+    code: str = Field(min_length=6, max_length=6)
+    upi_app: str = Field(min_length=2, max_length=20)
+    simulate_failure: bool = False
+
+
+@router.post("/orders/{app_id}/esign/start")
+def esign_start(app_id: int, u: User = Depends(customer_only), db: Session = Depends(get_db)):
+    a = own_order(db, u, app_id)
+    if a.status != "approved":
+        raise HTTPException(409, "This order is not ready to sign")
+    if not u.phone:
+        raise HTTPException(422, "Add a verified mobile number first")
+    rate_limit(f"otp:{u.id}", 10)
+    out = _otp_issue(a, "esign", u.phone)
+    db.commit()
+    return out
+
+
+@router.post("/orders/{app_id}/confirm")
+def order_confirm(app_id: int, body: Confirm, u: User = Depends(customer_only), db: Session = Depends(get_db)):
+    """OTP e-sign of the order form + UPI AutoPay mandate (both simulated). A failed first payment holds the order."""
+    a = own_order(db, u, app_id)
+    if a.status != "approved":
+        raise HTTPException(409, "This order is not ready to sign")
+    order = dict(a.order or {})
+    pay = dict(order.get("payment") or {})
+    if body.simulate_failure and not pay.get("failed"):
+        pay.update({"failed": 1, "app": body.upi_app, "failed_at": datetime.utcnow().isoformat()})
+        a.order = {**order, "payment": pay}
+        add_event(db, a, "payment_failed", a.status, "customer")
+        db.commit()
+        raise HTTPException(402, "The AutoPay mandate was declined. Your order is held, not cancelled: try again or "
+                                 "choose another UPI app.")
+    try:
+        _otp_check(a, "esign", body.code)
+    except HTTPException:
+        db.commit()
+        raise
+    now = datetime.utcnow().isoformat()
+    a.order = {**(a.order or {}), "esign_at": now,
+               "payment": {**pay, "app": body.upi_app, "mandate_at": now, "status": "active", "simulated": True}}
+    om.set_stage(a, "confirmed")
+    add_event(db, a, "confirmed", "confirmed", "customer")
+    db.commit()
+    return app_view(db, a)
 
 
 @router.post("/orders/{app_id}/resume")
@@ -576,16 +853,44 @@ def customer_label(db: Session, a: Application) -> tuple[str, str | None, str | 
     return (a.help_name or "Guest visitor"), None, a.help_phone
 
 
-def row_view(db: Session, a: Application, kyc_overall: str) -> dict:
+def row_view(db: Session, a: Application, k: dict | None) -> dict:
     r = a.requirements or {}
     name, email, phone = customer_label(db, a)
     q = a.quote or (build_quote(load_products(db), a.cart, req_of(a)) if a.cart else None)
+    tr = om.tracking(a, q, []) if a.status != "draft" else None
     return {"id": a.id, "customer": name, "email": email, "phone": phone, "is_guest": a.user_id is None,
             "business_type": r.get("business_type"), "city": r.get("city"), "language": a.language,
-            "status": a.status, "status_label": STATUS_LABELS[a.status], "kyc": kyc_overall,
+            "status": a.status, "status_label": STATUS_LABELS.get(a.status, a.status),
+            "kyc": (k or {}).get("overall", "pending"), "kyc_verdict": (k or {}).get("verdict"),
             "help_requested": a.help_requested, "help_status": a.help_status, "help_at": a.help_at,
             "monthly_estimate": (q or {}).get("monthly", {}).get("mid"), "items": len((q or {}).get("items", [])),
-            "submitted_at": a.submitted_at, "updated_at": a.updated_at}
+            "submitted_at": a.submitted_at, "updated_at": a.updated_at, "at_risk": bool(tr and tr["at_risk"]),
+            "task": work_item(a, k, tr)}
+
+
+def work_item(a: Application, k: dict | None, tr: dict | None) -> dict | None:
+    """Next team action on this record, minutes waited and priority (1 = most urgent)."""
+    now = datetime.utcnow()
+    mins = lambda t: int((now - t).total_seconds() // 60) if t else 0
+    st = (a.order or {}).get("stage_at", {})
+    since = lambda s: datetime.fromisoformat(st[s]) if st.get(s) else a.updated_at
+    risk = bool(tr and tr["at_risk"])
+    if a.help_requested and a.help_status in ("open", "in_progress"):
+        return {"kind": "help", "priority": 1, "waiting_min": mins(a.help_at), "label": "Call back: customer asked for help"}
+    if a.status in ("submitted", "in_review"):
+        held = [c["label"] for c in (k or {}).get("checks", []) if c["status"] in (kyc.MR, kyc.UNV)]
+        return {"kind": "kyc", "priority": 2, "waiting_min": mins(a.submitted_at),
+                "label": "Check verification" + (": " + ", ".join(held)[:110] if held else "")}
+    if a.status == "confirmed":
+        return {"kind": "schedule", "priority": 2 if risk else 3, "waiting_min": mins(since("confirmed")),
+                "label": "Book a technician visit"}
+    if a.status in ("scheduled", "installed"):
+        return {"kind": "install", "priority": 2 if risk else 4, "waiting_min": mins(since(a.status)),
+                "label": "Mark installed" if a.status == "scheduled" else "Activate the service"}
+    if a.status in ("awaiting_customer", "approved"):
+        return {"kind": "waiting", "priority": 5, "waiting_min": mins(a.updated_at),
+                "label": "Waiting for customer: " + ("fix documents" if a.status == "awaiting_customer" else "e-sign and AutoPay")}
+    return None
 
 
 def visible_apps(db: Session):
@@ -593,25 +898,29 @@ def visible_apps(db: Session):
 
 
 QUEUES = {
-    "help": lambda r: r["help_requested"] and r["help_status"] in ("open", "in_progress"),
-    "kyc": lambda r: r["status"] != "draft" and r["kyc"] in ("action_required", "needs_manual_review", "unable_to_verify"),
-    "new": lambda r: r["status"] == "submitted",
-    "active": lambda r: r["status"] in ("in_review", "awaiting_customer", "ready_for_activation"),
+    "work": lambda r: r["task"] is not None and r["task"]["kind"] != "waiting",
+    "help": lambda r: r["task"] is not None and r["task"]["kind"] == "help",
+    "kyc": lambda r: r["status"] in ("submitted", "in_review"),
+    "install": lambda r: r["status"] in ("confirmed", "scheduled", "installed"),
+    "waiting": lambda r: r["status"] in ("awaiting_customer", "approved"),
+    "done": lambda r: r["status"] in ("live", "closed"),
 }
 
 
 def all_rows(db: Session) -> list[dict]:
     products = load_products(db)
-    rows = []
-    for a in visible_apps(db).order_by(Application.updated_at.desc()).all():
-        rows.append(row_view(db, a, kyc_result(db, a, products)["overall"] if a.kyc else "pending"))
-    return rows
+    rows = [row_view(db, a, kyc_result(db, a, products) if a.kyc else None)
+            for a in visible_apps(db).order_by(Application.updated_at.desc()).all()]
+    return sorted(rows, key=lambda r: (r["task"]["priority"] if r["task"] else 9, -(r["task"] or {}).get("waiting_min", 0)))
 
 
 @router.get("/employee/summary")
 def emp_summary_counts(u: User = Depends(employee_only), db: Session = Depends(get_db)):
     rows = all_rows(db)
-    return {"queues": {k: sum(1 for r in rows if f(r)) for k, f in QUEUES.items()}, "total": len(rows)}
+    start = datetime.combine(datetime.utcnow().date(), datetime.min.time())
+    done_today = db.query(ApplicationEvent).filter(ApplicationEvent.by == "employee", ApplicationEvent.at >= start).count()
+    return {"queues": {k: sum(1 for r in rows if f(r)) for k, f in QUEUES.items()}, "total": len(rows),
+            "at_risk": sum(1 for r in rows if r["at_risk"]), "actions_today": done_today}
 
 
 @router.get("/employee/applications")
@@ -643,12 +952,13 @@ def emp_detail(db: Session, a: Application) -> dict:
     snap = (a.kyc or {}).get("snapshot", {})
     q = a.quote or (build_quote(products, a.cart, req_of(a)) if a.cart else None)
     return {
-        **row_view(db, a, live["overall"]),
+        **row_view(db, a, live),
         "requirements": a.requirements, "needs_labels": [NEED_LABELS.get(n, n) for n in (a.requirements or {}).get("needs", [])],
         "messages": a.messages, "quote": q, "quote_is_snapshot": bool(a.quote),
         "kyc": {**live, "submitted_snapshot": snap.get("overall")}, "help_note": a.help_note,
         "notes": a.employee_notes or [], "events": events_of(db, a),
-        "allowed_transitions": sorted(TRANSITIONS[a.status]), "expected_activation": expected_activation(a, q),
+        "allowed_transitions": sorted(TRANSITIONS.get(a.status, set())), "expected_activation": expected_activation(a, q),
+        "tracking": om.tracking(a, q, []) if a.status != "draft" else None, "slot_windows": om.WINDOWS,
     }
 
 
@@ -660,18 +970,56 @@ def emp_get(app_id: int, u: User = Depends(employee_only), db: Session = Depends
 class StatusChange(BaseModel):
     status: str
     note: str = ""
+    date: str | None = None     # technician visit date (scheduled)
+    window: str | None = None
 
 
 @router.post("/employee/applications/{app_id}/status")
 def emp_status(app_id: int, body: StatusChange, u: User = Depends(employee_only), db: Session = Depends(get_db)):
     a = emp_app(db, app_id)
-    if body.status not in TRANSITIONS[a.status]:
+    if body.status not in TRANSITIONS.get(a.status, set()):
         raise HTTPException(409, f"Cannot move from {a.status} to {body.status}")
+    note = body.note.strip()[:500]
+    if body.status == "awaiting_customer":
+        if not note:
+            raise HTTPException(422, "Tell the customer what to fix")
+        a.order = {**(a.order or {}), "customer_message": note}
+    if body.status == "scheduled":
+        try:
+            day = datetime.strptime(body.date or "", "%Y-%m-%d").date()
+        except ValueError:
+            raise HTTPException(422, "Pick a visit date")
+        if day < datetime.utcnow().date() or body.window not in om.WINDOWS:
+            raise HTTPException(422, "Pick a future date and a time window")
+        prev = (a.order or {}).get("slot") or {}
+        a.order = {**(a.order or {}), "slot": {
+            "date": day.isoformat(), "window": body.window, "rescheduled": bool(prev),
+            "technician": prev.get("technician") or om.TECHNICIANS[a.id % len(om.TECHNICIANS)]}}
     a.employee_notes = (a.employee_notes or []) + [{
-        "by": u.name, "at": datetime.utcnow().isoformat(), "text": body.note.strip()[:500] or f"Status changed to {body.status}",
+        "by": u.name, "at": datetime.utcnow().isoformat(), "text": note or f"Moved to {STATUS_LABELS.get(body.status)}",
         "status": body.status}]
-    a.status = body.status
+    om.set_stage(a, body.status)
     add_event(db, a, "status", body.status, "employee")
+    db.commit()
+    return emp_detail(db, a)
+
+
+class CallLog(BaseModel):
+    outcome: str  # reached | no_answer | call_back
+    note: str = ""
+
+
+@router.post("/employee/applications/{app_id}/call")
+def emp_call(app_id: int, body: CallLog, u: User = Depends(employee_only), db: Session = Depends(get_db)):
+    """Log a call to the customer (the call itself is placed from the employee's phone via a tel: link)."""
+    a = emp_app(db, app_id)
+    if body.outcome not in ("reached", "no_answer", "call_back"):
+        raise HTTPException(422, "Unknown call outcome")
+    a.employee_notes = (a.employee_notes or []) + [{"by": u.name, "at": datetime.utcnow().isoformat(), "kind": "call",
+                                                     "outcome": body.outcome, "text": body.note.strip()[:500]}]
+    if body.outcome == "reached" and a.help_status == "open":
+        a.help_status = "in_progress"
+    add_event(db, a, "call_" + body.outcome, a.status, "employee")
     db.commit()
     return emp_detail(db, a)
 
@@ -717,7 +1065,7 @@ def ai_context(db: Session, a: Application) -> dict:
         "kyc": {"overall": k["overall"], "mode": k.get("mode"), "gstin": k.get("gstin_masked"), "udyam": k.get("udyam_masked"),
                 "checks": [{"label": c["label"], "status": c["status"], "detail": c["detail"]} for c in k["checks"]]},
         "help_requested": a.help_requested, "help_status": a.help_status, "help_note": a.help_note,
-        "conversation": [{"role": m["role"], "text": m["text"]} for m in (a.messages or [])[-20:]],
+        "conversation": [{"role": m["role"], "text": ai.redact(m["text"])} for m in (a.messages or [])[-20:]],
         "employee_notes": a.employee_notes,
     }
 
@@ -743,3 +1091,66 @@ def emp_translate(app_id: int, u: User = Depends(employee_only), db: Session = D
     a = emp_app(db, app_id)
     texts = [m["text"] for m in (a.messages or [])]
     return {"english": ai.cached_translate(db, texts, "en") if texts else []}
+
+
+# ---------- employee: KYC check on the case-pack specimens ----------
+SPECIMEN_DOCS = ("gst_certificate", "udyam_certificate", "signatory_id", "address_proof")
+
+
+def specimen_result(db: Session, kid: str) -> dict:
+    from types import SimpleNamespace
+    if not re.fullmatch(r"K(0[1-9]|1[0-2])", kid):
+        raise HTTPException(404, "Unknown specimen")
+    folder = settings.data_path / "kyc_documents"
+    docs = []
+    for dt in SPECIMEN_DOCS:
+        f = folder / f"{kid}_{dt}.png"
+        if not f.exists():
+            continue
+        quality = kyc.image_quality(str(f))
+        ex = {"available": False, "lines": [], "fields": {}}
+        if not (quality["blurry"] or quality["low_resolution"]):
+            ex = kyc.extract_cached(str(f), kyc.image_hash(f.read_bytes()))
+            ex["fields"] = kyc.parse_fields(dt, ex.get("lines", []))
+        docs.append(SimpleNamespace(doc_type=dt, extracted=ex, quality=quality))
+    fields = {d.doc_type: d.extracted.get("fields", {}) for d in docs}
+    g = (fields.get("gst_certificate") or {}).get("gstin")
+    u = (fields.get("udyam_certificate") or {}).get("udyam")
+    rec = db.get(RefGstin, g) if g else None
+    if not u and rec:  # certificate missing or unreadable: the owner would know their number
+        hit = [x for x in db.query(RefUdyam).filter(RefUdyam.enterprise_name == rec.trade_name).all()
+               if x.city.lower() in rec.principal_place_of_business.lower()]
+        u = hit[0].udyam_number if hit else None
+    state = {"consent": True, "phone_verified": True, "mode": "both", "gstin": g, "udyam": u}
+    res = kyc.evaluate_kyc(db, state, docs, [], None)
+    name = (rec.trade_name if rec else None) or (fields.get("signatory_id") or {}).get("business") or kid
+    g, u = res.pop("_gstin", None) or g, res.pop("_udyam", None) or u  # never send unmasked identifiers
+    return {"id": kid, "business": name, **res,
+            "documents": [{"doc_type": d.doc_type, "label": kyc.DOC_LABELS[d.doc_type], "fields": safe_fields(d.extracted.get("fields")),
+                           "quality": d.quality} for d in docs],
+            "gstin_masked": kyc.mask(g), "udyam_masked": kyc.mask(u)}
+
+
+@router.get("/employee/specimens")
+def specimens(u: User = Depends(employee_only), db: Session = Depends(get_db)):
+    out = []
+    for n in range(1, 13):
+        r = specimen_result(db, f"K{n:02d}")
+        out.append({"id": r["id"], "business": r["business"], "verdict": r["verdict"],
+                    "flags": [c["label"] for c in r["checks"] if c["status"] != kyc.V][:3]})
+    return {"specimens": out}
+
+
+@router.get("/employee/specimens/{kid}")
+def specimen(kid: str, u: User = Depends(employee_only), db: Session = Depends(get_db)):
+    return specimen_result(db, kid)
+
+
+@router.get("/employee/specimens/{kid}/{doc_type}")
+def specimen_image(kid: str, doc_type: str, u: User = Depends(employee_only)):
+    if not re.fullmatch(r"K(0[1-9]|1[0-2])", kid) or doc_type not in SPECIMEN_DOCS:
+        raise HTTPException(404, "Not found")
+    f = settings.data_path / "kyc_documents" / f"{kid}_{doc_type}.png"
+    if not f.exists():
+        raise HTTPException(404, "Not found")
+    return FileResponse(f)

@@ -8,7 +8,7 @@ Prototype only. All data is synthetic. Not an official Airtel product. No live g
 flowchart TB
     subgraph FE["Next.js + TypeScript + Tailwind (one app, two route groups)"]
         direction LR
-        CP["Customer site (guest or signed in), 10 languages<br/>Advisor chat + voice · Plans · Catalogue & prerequisites<br/>Quote · Verify (KYC) · Review · My orders · Talk to a person"]
+        CP["Customer site (guest or signed in), English / Hindi / Telugu<br/>Advisor chat + voice · Plans · Catalogue & prerequisites<br/>Quote · Verify (KYC) · Review · My orders · Talk to a person"]
         EP["Employee console /employee<br/>Queues: live help, KYC exceptions, new, in progress<br/>Detail · status · notes · English translation · AI summary"]
     end
 

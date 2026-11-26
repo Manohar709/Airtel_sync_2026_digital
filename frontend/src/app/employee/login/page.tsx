@@ -24,21 +24,33 @@ export default function EmployeeLogin() {
   }
 
   return (
-    <div className="grid min-h-screen bg-ink lg:grid-cols-2">
-      <div className="relative hidden overflow-hidden p-12 lg:block">
-        <div aria-hidden className="absolute -left-40 -top-40 h-[560px] w-[560px] rounded-full bg-[radial-gradient(closest-side,rgb(228_0_0/0.35),transparent)]" />
-        <div className="relative"><Logo tone="light" suffix="Employee console" /></div>
-        <p className="relative mt-24 max-w-md text-4xl font-extrabold leading-tight tracking-[-0.03em] text-white">Every customer request, with full context, in one place.</p>
+    <div className="grid min-h-screen lg:grid-cols-[1.1fr_1fr]">
+      <div className="relative hidden overflow-hidden bg-night-gradient p-12 text-white lg:flex lg:flex-col">
+        <svg aria-hidden className="absolute -right-48 -top-40 h-[720px] w-[720px] opacity-[0.12]" viewBox="0 0 400 400" fill="none" stroke="white">
+          {[70, 120, 170, 220, 270].map((r) => <circle key={r} cx="330" cy="70" r={r} strokeWidth="1" />)}
+        </svg>
+        <div className="relative"><Logo tone="light" suffix="Staff" /></div>
+        <div className="relative mt-auto max-w-lg">
+          <p className="font-display text-[2.6rem] font-bold leading-[1.08] tracking-[-0.03em]">Every customer, with full context, in one queue.</p>
+          <ul className="mt-8 space-y-3 text-white/75">
+            {["Call-backs and verification holds ranked by urgency", "Clean applications are approved automatically", "One tap to call, message, schedule or activate"].map((x) => (
+              <li key={x} className="flex items-center gap-3"><span className="h-1.5 w-1.5 rounded-full bg-brand" />{x}</li>
+            ))}
+          </ul>
+        </div>
       </div>
       <div className="flex items-center justify-center bg-surface p-6">
         <form onSubmit={submit} className="card w-full max-w-sm space-y-4 p-8">
-          <div className="lg:hidden"><Logo suffix="Employee" /></div>
-          <div className="flex items-center gap-2"><Lock className="h-4 w-4 text-brand" /><h1 className="h2">Employee sign in</h1></div>
-          <p className="text-sm text-muted">For authorised team members only.</p>
+          <div className="lg:hidden"><Logo suffix="Staff" /></div>
+          <div>
+            <div className="flex items-center gap-2"><Lock className="h-4 w-4 text-brand" /><h1 className="h2">Staff sign in</h1></div>
+            <p className="mt-1 text-sm text-muted">For authorised team members only.</p>
+          </div>
           <Field label="Work email"><input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="username" required /></Field>
           <Field label="Password"><input className="input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" required /></Field>
           <ErrorNote error={err} />
           <Button className="w-full" loading={busy}>Sign in</Button>
+          <a href="/" className="block text-center text-sm font-semibold text-muted hover:text-ink">Back to customer site</a>
         </form>
       </div>
     </div>

@@ -3,8 +3,8 @@
 ```mermaid
 flowchart LR
     %% 1. CHANNELS
-    C1["Customer Web Portal<br/>10 Languages • Text + Voice<br/>Browse as Guest • My Orders"]
-    C2["Employee Console<br/>Live Help • KYC Exceptions<br/>New • In Progress Queues"]
+    C1["Customer Web Portal<br/>English, Hindi, Telugu • Text + Voice<br/>Browse as Guest • My Orders"]
+    C2["Employee Console<br/>Urgency-ranked work queue<br/>KYC check • Order fulfilment"]
 
     %% 2. SECURITY
     SEC["API Gateway & Privacy Shield<br/>JWT • Guest Token • bcrypt<br/>Consent • Masked GSTIN/PAN • Rate Limits"]

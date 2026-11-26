@@ -31,6 +31,7 @@ PG_UPGRADES = [
     "ALTER TABLE applications ADD COLUMN IF NOT EXISTS help_status VARCHAR(20)",
     "ALTER TABLE applications ADD COLUMN IF NOT EXISTS help_at TIMESTAMP",
     "CREATE INDEX IF NOT EXISTS ix_applications_guest_id ON applications (guest_id)",
+    "ALTER TABLE applications ADD COLUMN IF NOT EXISTS fulfilment JSON",
 ]
 
 

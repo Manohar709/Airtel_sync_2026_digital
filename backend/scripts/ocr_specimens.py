@@ -11,12 +11,12 @@ TYPES = {"gst": "gst_certificate", "udyam": "udyam_certificate", "signatory": "s
 res = json.loads(OUT.read_text(encoding="utf-8")) if OUT.exists() else {}
 t0 = time.time()
 for f in sorted(DOCS.glob("*.png")):
-    if res.get(f.name, {}).get("v") == 2:
+    if res.get(f.name, {}).get("v") == 3:
         continue
     dt = next(v for k, v in TYPES.items() if f"_{k}" in f.name)
     ex = kyc.extract_text(str(f))
-    res[f.name] = {"v": 2, "doc_type": dt, "quality": kyc.image_quality(str(f)), "available": ex.get("available"),
+    res[f.name] = {"v": 3, "tilt_deg": ex.get("tilt_deg"), "doc_type": dt, "quality": kyc.image_quality(str(f)), "available": ex.get("available"),
                    "error": ex.get("error"), "confidence": ex.get("confidence"), "lines": ex.get("lines", [])}
     OUT.write_text(json.dumps(res, indent=1, ensure_ascii=False), encoding="utf-8")
     print(f.name, "ok" if ex.get("available") else ex.get("error"), round(time.time() - t0), "s", flush=True)
-print("done", sum(1 for v in res.values() if v.get("v") == 2), "of 47")
+print("done", sum(1 for v in res.values() if v.get("v") == 3), "of 47")

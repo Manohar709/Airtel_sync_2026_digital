@@ -6,7 +6,43 @@ Tiers use only catalogue rules:
   Advanced    - highest-priced segment-matching product, plus connectivity products that
                 list the chosen link in their own requires_one_of (e.g. failover, static IP)
 """
+from collections import Counter
 from .catalogue import (Product, Requirements, NEED_PRODUCTS, NEED_LABELS, evaluate, default_quantity)
+
+_NEED_OF = {pid: need for need, pids in NEED_PRODUCTS.items() for pid in pids}
+_LEAD_NEEDS: dict | None = None
+
+
+def _lead_needs(db) -> dict:
+    """business type -> Counter of needs that leads of that type asked about (smb_leads.csv products_of_interest)."""
+    global _LEAD_NEEDS
+    if _LEAD_NEEDS is None:
+        from .models import RefHistoricalLead
+        out: dict[str, Counter] = {}
+        for bt, raw in db.query(RefHistoricalLead.business_type, RefHistoricalLead.raw).all():
+            c = out.setdefault((bt or "").lower(), Counter())
+            for pid in str((raw or {}).get("products_of_interest") or "").split(";"):
+                if pid.strip() in _NEED_OF:
+                    c[_NEED_OF[pid.strip()]] += 1
+        out["*"] = sum(out.values(), Counter())
+        _LEAD_NEEDS = out
+    return _LEAD_NEEDS
+
+
+def effective_needs(db, req: Requirements) -> tuple[list[str], str]:
+    """Needs to plan for now: what the customer said, else what similar businesses most often asked for."""
+    if req.needs:
+        return list(req.needs), "stated"
+    data = _lead_needs(db)
+    c = data.get((req.business_type or "").lower())
+    if c:
+        return [n for n, _ in c.most_common(3)], "similar"
+    return [n for n, _ in data["*"].most_common(2)], "popular"
+
+
+def has_preview(req: Requirements) -> bool:
+    """Any useful fact is enough to show a starting plan."""
+    return bool(req.business_type or req.needs or req.city or req.employee_count)
 from .quote import build_quote
 
 
@@ -93,6 +129,16 @@ def recommend(products: dict[str, Product], req: Requirements, segment_code: str
 
     tiers = {n: tier(n) for n in ("basic", "recommended", "advanced")} if per_need else {}
 
+    # One recommended plan + optional add-ons: eligible products that build on what the plan already includes
+    # (e.g. static IP or failover for the chosen connection). The customer switches them on or off.
+    addons = []
+    if tiers:
+        base = set(tiers["recommended"]["reasons"])
+        for q in sorted(products.values(), key=lambda x: x.mid):
+            if q.product_id not in base and q.requires_one_of and set(q.requires_one_of) & base and _hard_ok(q, req, products)[0]:
+                addons.append({"product_id": q.product_id, "quantity": default_quantity(q, req)})
+    lower = tiers and {c["product_id"] for c in tiers["basic"]["cart"]} != {c["product_id"] for c in tiers["recommended"]["cart"]}
+
     items = []
     rec_ids = tiers.get("recommended", {}).get("reasons", {})
     for pid, why in rec_ids.items():
@@ -106,7 +152,7 @@ def recommend(products: dict[str, Product], req: Requirements, segment_code: str
             "additional_products_needed": [i for i in p.requires_one_of if i not in rec_ids],
         })
     return {
-        "items": items, "tiers": tiers, "unmet_needs": unmet,
+        "items": items, "tiers": tiers, "unmet_needs": unmet, "addons": addons[:6], "has_lower_cost": bool(lower),
         "no_match": not per_need,
         "no_match_message": (
             "No catalogue product matches your stated needs and business profile. "

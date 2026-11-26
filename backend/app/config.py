@@ -22,10 +22,11 @@ class Settings(BaseSettings):
     # The only employee account; created/updated at startup (password stored hashed)
     employee_email: str = ""
     employee_password: str = ""
-    employee_name: str = "Airtel SYNC Employee"
+    employee_name: str = "Airtel Vyapaar Connect Staff"
     guest_token_days: int = 7
     max_audio_kb: int = 2048
-    rate_limit_per_hour: int = 120  # per client for guest creation, voice and help requests
+    rate_limit_per_hour: int = 120
+    demo_mode: bool = True  # shows simulated OTP codes on screen (no SMS gateway in the prototype)  # per client for guest creation, voice and help requests
 
     @property
     def upload_path(self) -> Path:

@@ -35,7 +35,7 @@ function AccountInner() {
   return (
     <div className="container-x grid min-h-[70vh] items-center gap-10 py-12 lg:grid-cols-2">
       <div className="max-w-md">
-        <div className="eyebrow mb-3">SYNC</div>
+        <div className="eyebrow mb-3">Vyapaar Connect</div>
         <h1 className="h1">{t("title")}</h1>
         <p className="mt-3 text-muted">{t("subtitle")}</p>
         <div className="mt-6 flex items-center gap-3 rounded-2xl bg-white p-4 text-sm text-muted ring-1 ring-line">

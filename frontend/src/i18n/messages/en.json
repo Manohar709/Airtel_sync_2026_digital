@@ -1,6 +1,6 @@
 {
   "brand": {
-    "name": "SYNC",
+    "name": "Vyapaar Connect",
     "tagline": "Business connectivity, made simple",
     "disclaimer": "Prototype built on synthetic data. Not an official Airtel product or service. Verification uses supplied mock registries only."
   },
@@ -14,9 +14,10 @@
     "signOut": "Sign out",
     "help": "Talk to a person",
     "language": "Language",
-    "employee": "Employee login",
+    "employee": "Staff login",
     "menu": "Menu",
-    "close": "Close"
+    "close": "Close",
+    "forBusiness": "Airtel Vyapaar Connect for small businesses"
   },
   "steps": {
     "describe": "Describe",
@@ -49,14 +50,14 @@
     "or": "or"
   },
   "home": {
-    "eyebrow": "For shops, clinics, offices and growing businesses",
-    "title": "Tell us about your business. We will set up the right connectivity.",
-    "subtitle": "Describe what you need in your own words, in your language, by typing or speaking. Get clear options, transparent prices and a guided setup, without waiting for a sales visit.",
+    "eyebrow": "Business connectivity, without the sales visit",
+    "title": "Get your business connected in one sitting.",
+    "subtitle": "Tell us about your shop, clinic or office in your own words. We recommend the right internet, phone and digital services, show an honest price and verify your documents online.",
     "ctaTalk": "Talk to the advisor",
     "ctaSpeak": "Speak instead",
     "ctaBrowse": "Browse all products",
-    "langNote": "Available in English, Hindi and 8 regional languages",
-    "howTitle": "How it works",
+    "langNote": "Available in English, Hindi and Telugu",
+    "howTitle": "From hello to installed, without the paperwork chase",
     "how1Title": "Describe your business",
     "how1Body": "Tell the advisor what you do and what is not working today. It asks only what it needs.",
     "how2Title": "See plans that fit",
@@ -82,12 +83,36 @@
     "trust4Title": "A person when you need one",
     "trust4Body": "Ask for help at any step. Our team sees your details, so you never repeat yourself.",
     "finalTitle": "Ready when you are",
-    "finalBody": "It takes a few minutes. No sign-in needed to explore.",
+    "finalBody": "A few minutes, no sign-in needed to explore.",
     "demoUser": "I run a salon in Jaipur with 6 staff. UPI payments keep failing at the counter.",
     "demoBot": "Got it - a 6-person salon in Jaipur that needs dependable internet and billing. Do you have a GSTIN?",
     "demoPlan": "Recommended",
     "demoEligible": "Available for you",
-    "demoNote": "Example conversation. Prices are catalogue ranges per month, excluding taxes."
+    "demoNote": "Example conversation. Prices are catalogue ranges per month, excluding taxes.",
+    "askPlaceholder": "e.g. I run a salon in Jaipur with 6 staff and UPI keeps failing",
+    "askGo": "Get my plan",
+    "popular": "Popular:",
+    "stat1": "business services",
+    "stat2": "languages: English, Hindi, Telugu",
+    "stat3": "steps, one sitting",
+    "stat4": "document checks",
+    "stat4v": "Instant",
+    "servicesTitle": "Everything a growing business needs",
+    "servicesBody": "One partner for connectivity, calls, cloud, security and smart devices. One monthly bill.",
+    "from": "from {price}/mo",
+    "seeAll": "See all services",
+    "kycTitle": "Documents checked in seconds, not days",
+    "kycBody": "Upload a photo of your GST certificate, ID and electricity bill. We read them on our own servers, check them against the registry and tell you exactly what to fix, right away.",
+    "kyc1": "GSTIN found and active in the registry",
+    "kyc2": "Photo was tilted; straightened automatically",
+    "kyc3": "Bill is older than 90 days: upload a newer one",
+    "kycPoints1": "Clean applications are approved automatically",
+    "kycPoints2": "Only real exceptions go to our team",
+    "kycPoints3": "No GST? Verify with your ID, bill and DigiLocker",
+    "forBody": "Pick your business to start with the right questions.",
+    "howEyebrow": "How it works",
+    "titleA": "Get your business connected",
+    "titleB": "in one sitting."
   },
   "advisor": {
     "title": "Business advisor",
@@ -155,7 +180,23 @@
       "fibre": "Fibre",
       "budget": "Up to {amount}"
     },
-    "startWith": "I run a {type}."
+    "startWith": "I run a {type}.",
+    "startTitle": "Your starting plan",
+    "startSimilar": "Based on what similar businesses usually choose.",
+    "startStated": "Based on what you've told us so far.",
+    "startMore": "Answer {n} more questions to fine-tune it.",
+    "planIntro": "Here's a bundle based on your requirements so far:",
+    "planIntroReady": "Here's the bundle I recommend for your business:",
+    "bundleTitle": "Recommended bundle",
+    "bundleReady": "Your plan is ready",
+    "basedOn": "For:",
+    "factPeople": "{n} people",
+    "factSites": "{n} locations",
+    "tailorTitle": "Help us tailor this plan",
+    "tailorBody": "Share a few more details (team size, locations, what you need) and we'll fine-tune the products and price.",
+    "sharedCount": "{done} of {total} details shared",
+    "viewPlan": "View full plan",
+    "fineTunePrefix": "To fine-tune it:"
   },
   "needs": {
     "internet": "Internet",
@@ -223,18 +264,23 @@
     "pending": "To be confirmed",
     "missing": "Missing",
     "verified": "Verified",
-    "action_required": "Action needed",
-    "needs_manual_review": "Team review",
+    "action_required": "Needs your action",
+    "needs_manual_review": "With our team",
     "unable_to_verify": "Could not check",
     "draft": "Draft",
     "submitted": "Submitted",
-    "in_review": "In review",
+    "in_review": "Team checking",
     "awaiting_customer": "Waiting for you",
     "ready_for_activation": "Ready for activation",
     "closed": "Closed",
     "open": "Requested",
     "in_progress": "Team is on it",
-    "resolved": "Resolved"
+    "resolved": "Resolved",
+    "approved": "Verified",
+    "confirmed": "Order confirmed",
+    "scheduled": "Technician booked",
+    "installed": "Installed",
+    "live": "Live"
   },
   "codes": {
     "elig": {
@@ -276,7 +322,12 @@
       "missing": "Enter your GSTIN",
       "ok": "GSTIN format and check digit are valid",
       "bad_structure": "This does not look like a GSTIN. It should have 15 characters.",
-      "bad_checksum": "The last character does not match. Please check for a typo."
+      "bad_checksum": "The last character does not match. Please check for a typo.",
+      "repaired": "We read {read}; an OCR look-alike character was corrected to {fixed}. The check digit and the registry confirm it.",
+      "altered": "The GSTIN printed on the certificate fails its check digit. Our team will check the certificate.",
+      "altered_suggest": "The GSTIN on the certificate fails its check digit. The registry has {suggestion} for this business: a digit differs, which is not a reading error, so the certificate may be altered. Our team will check it.",
+      "typo": "The GSTIN check digit does not match. Please check for a typo.",
+      "typo_suggest": "The GSTIN check digit does not match. Did you mean {suggestion}?"
     },
     "udyam": {
       "missing": "Enter your Udyam number",
@@ -285,41 +336,51 @@
     },
     "gstin_registry": {
       "active": "Found in the registry with status Active",
-      "inactive": "This GSTIN is {reg_status} in the registry. Products that need GST cannot proceed until this is resolved.",
-      "not_found": "We could not find this GSTIN in the registry. Our team will check it."
+      "inactive": "This GSTIN is {reg_status} in the registry. Our team must review it.",
+      "not_found": "This GSTIN is not in the registry. Our team will check it."
     },
     "udyam_registry": {
       "found": "Found in the Udyam registry",
       "not_found": "We could not find this Udyam number in the registry. Our team will check it."
     },
     "registration": {
-      "none": "No GST or Udyam registration. Our team reviews your business details."
+      "self_declared": "No GST or Udyam needed for your plan. The technician confirms your address at installation.",
+      "none": "No GST or Udyam registration."
     },
-    "gstin_required": "These products need an active GSTIN: {products}",
+    "gstin_required": "These products need an active GSTIN: {products}. Remove them or add an active GSTIN.",
     "doc": {
       "not_uploaded": "Not uploaded yet",
-      "unclear": "The photo is too blurry or small to read. Please upload a sharper, well-lit photo of the full document.",
-      "ocr_unavailable": "We could not read this automatically. Our team will check it manually.",
+      "unclear": "The photo is too blurry to read. Please retake it in good light.",
+      "ocr_unavailable": "We could not read this automatically. Our team will read it.",
       "fields_missing": "We could not find: {fields}. Please upload a clearer photo of the complete document.",
-      "fields_ok": "Document read successfully"
+      "fields_ok": "Read successfully",
+      "straightened": "Photo was tilted {deg}°. We straightened it and read it automatically.",
+      "too_tilted": "The photo is too tilted to read. Hold the phone straight above the document and retake it.",
+      "number_blank": "The Udyam number on this certificate is blank. Please upload the complete certificate."
     },
     "number": {
-      "match": "Matches the number you entered",
-      "mismatch": "The number on the document does not match the one you entered",
-      "near": "Almost identical to the number you entered. One or two characters may have been misread, so our team will confirm."
+      "match": "Matches",
+      "mismatch": "The number on the document differs from the one entered. Our team will check.",
+      "near": "Almost identical to the number you entered. One or two characters may have been misread, so our team will confirm.",
+      "lookalike": "Matches, after correcting a look-alike character (0/O, 1/I/J, 5/S, 8/B)"
     },
     "name": {
-      "match": "Name matches our records",
+      "match": "Matches the registry",
       "differs": "The name differs slightly from our records. Our team will review it.",
-      "mismatch": "The name does not appear to match our records. Please check the document or ask for help."
+      "mismatch": "\"{name}\" does not match the registry. Our team will check it.",
+      "word_changed": "\"{name}\" differs from the registry: \"{got}\" instead of \"{want}\". The document may be outdated or edited, so our team will check it."
     },
     "addr": {
       "match": "Address matches the registry",
-      "differs": "Address differs from the registry. Our team will review it."
+      "differs": "The address differs from the registry. Our team will check it."
     },
     "city": {
       "match": "City matches the Udyam record",
-      "differs": "City differs from the Udyam record. Our team will review it."
+      "differs": "The city differs from the Udyam record. Our team will check it.",
+      "declared_ok": "The bill is for {city}, as you told us",
+      "declared_differs": "The bill address is not in {city}. Upload a bill for your business address.",
+      "chat_ok": "{city}, as you told us",
+      "chat_differs": "You told us {chat}, but this registration is in {registry}. Plans and prices depend on the city."
     },
     "bill_date": {
       "unreadable": "We could not read the bill date",
@@ -328,17 +389,36 @@
       "ok": "Recent bill ({age} days old)"
     },
     "billed_to": {
-      "match": "Billed-to name matches your business",
-      "differs": "Billed-to name differs from your business name. That can be fine, for example an owner or landlord. Our team will review it."
+      "match": "The bill is in your business or owner's name",
+      "differs": "The bill is not in your business or owner's name. Upload a bill in the business name."
     },
     "id_validity": {
-      "expired": "This ID expired on {date}",
+      "expired": "This ID expired on {date}. Upload a valid ID or use DigiLocker.",
       "ok": "ID is valid",
       "unreadable": "We could not read the validity date"
     },
     "signatory": {
-      "name_in_registry": "Signatory name appears in the registry. Our team confirms signing authority.",
-      "manual": "Our team confirms the signatory's authority"
+      "owner": "The ID holder is the registered owner",
+      "role_ok": "Signs as {role}; confirmed by OTP e-sign",
+      "authority": "{role} may not be allowed to sign for the business. Our team will confirm."
+    },
+    "phone": {
+      "ok": "Mobile number confirmed",
+      "pending": "Confirm your mobile number with a one-time code"
+    },
+    "registry": {
+      "same": "Your GST and Udyam records are for the same business",
+      "different": "Your GST and Udyam records name different businesses. Our team will check.",
+      "found_inactive": "A {reg_status} GST registration ({gstin}) exists for this business. Our team will check.",
+      "found_active": "Your business has an active GST registration ({gstin}); your plan does not need it."
+    },
+    "digilocker": {
+      "ok": "Identity confirmed with DigiLocker (simulated)",
+      "not_owner": "The DigiLocker name is not the registered owner. Our team will check."
+    },
+    "docs": {
+      "same": "Your ID and bill are for the same business",
+      "different": "Your ID and bill name different businesses. Please check them."
     }
   },
   "fieldNames": {
@@ -352,8 +432,8 @@
     "date": "bill date"
   },
   "plans": {
-    "title": "Plans for your business",
-    "subtitle": "Three configurations built only from products you are eligible for.",
+    "title": "Your recommended plan",
+    "subtitle": "Built from what you told us, using only plans you're eligible for. Switch extras on or off; the price updates instantly.",
     "needAdvisor": "Tell the advisor about your business first, so we can show plans that fit.",
     "goAdvisor": "Go to the advisor",
     "basic": "Basic",
@@ -374,7 +454,19 @@
     "unmetNext": "Our team can suggest alternatives. Use Talk to a person.",
     "noMatch": "No product matches your needs and business profile yet. Our team can review options with you.",
     "cheaper": "Cheaper option also available: {names}",
-    "compareTitle": "Compare side by side"
+    "compareTitle": "Compare side by side",
+    "addonsTitle": "Optional add-ons",
+    "addonsHint": "Work with the services in your plan.",
+    "lowerCost": "Show a lower-cost version",
+    "lowerCostHint": "Same needs covered with entry-level options.",
+    "continue": "Continue with this plan",
+    "whyEach": "Why each service is included",
+    "perMonthAdd": "+{price}/mo",
+    "standard": "Recommended version",
+    "lowerOn": "Lower-cost version",
+    "startTitle": "This is a starting plan",
+    "startMissing": "Tell the advisor your {fields} so we can confirm eligibility and pick the right size.",
+    "fineTune": "Fine-tune with the advisor"
   },
   "product": {
     "requirements": "Requirements and prerequisites",
@@ -435,7 +527,7 @@
   },
   "verify": {
     "title": "Verify your business",
-    "subtitle": "We check your details against the supplied registries. This is a prototype check, not an official government verification.",
+    "subtitle": "Takes about 2 minutes. We read your documents on our own server and check them against the GST and Udyam registries.",
     "consentTitle": "Your consent",
     "consentText": "I agree to share my business identifiers and documents for onboarding checks. Only what is needed is collected, identifiers are masked on screen, documents are processed on our server and never sent to any AI service, and they are deleted automatically after the retention period.",
     "modeTitle": "Is your business registered?",
@@ -443,13 +535,12 @@
     "mode_udyam": "I have a Udyam number",
     "mode_both": "I have both",
     "mode_none": "I have neither",
-    "modeNoneNote": "That is fine for many shops. You can order products that do not need GST, and our team reviews your business details.",
     "gstinLabel": "GSTIN",
     "udyamLabel": "Udyam number",
     "businessName": "Business name",
     "saved": "Saved: {value}",
     "check": "Check details",
-    "docsTitle": "Documents",
+    "docsTitle": "Your documents",
     "docsSubtitle": "Clear photos or scans, PNG or JPG, up to 5 MB each.",
     "doc_gst_certificate": "GST registration certificate",
     "doc_udyam_certificate": "Udyam certificate",
@@ -466,7 +557,56 @@
     "stage_consistency": "Cross-checks",
     "gstinProducts": "Your plan includes products that need GST: {products}",
     "toReview": "Continue to review",
-    "prefill": "From the registry"
+    "prefill": "From the registry",
+    "verdict_pass": "All checks passed",
+    "verdict_pass_body": "Your business is verified. You can continue.",
+    "verdict_ask": "A few things to fix",
+    "verdict_ask_body": "Fix the items below and we'll check again instantly.",
+    "verdict_hold": "Our team will take a quick look",
+    "verdict_hold_body": "Some details need a person to confirm. You can submit now; we'll call you if anything is needed.",
+    "verdict_incomplete": "Let's get started",
+    "verdict_incomplete_body": "Give consent to start.",
+    "groupFix": "To fix",
+    "groupTeam": "Checked by our team",
+    "groupFixed": "Fixed automatically",
+    "groupOk": "Passed",
+    "phoneTitle": "Confirm your mobile",
+    "phoneHint": "So our technician and team can reach you. We send a 6-digit code.",
+    "phoneLabel": "Mobile number",
+    "sendCode": "Send code",
+    "codeLabel": "6-digit code",
+    "verifyCode": "Confirm",
+    "resend": "Send again",
+    "phoneDone": "Confirmed: {phone}",
+    "digiTitle": "Verify with DigiLocker instead",
+    "digiHint": "No ID photo needed. Simulated in this prototype: in production the name comes from UIDAI.",
+    "digiName": "Name as on Aadhaar",
+    "digiLast4": "Last 4 digits of Aadhaar",
+    "digiNote": "We never ask for or store your full Aadhaar number.",
+    "digiStart": "Get code",
+    "digiVerify": "Verify",
+    "digiDone": "Verified with DigiLocker: {name} (XXXX-{last4})",
+    "digiNeedPhone": "Confirm your mobile number first.",
+    "or": "or",
+    "demoLoading": "Reading the documents…",
+    "toReviewLocked": "Fix the items above to continue",
+    "readingHint": "Reading your document on our server. This takes a few seconds.",
+    "staff_pass": "Passes automatically",
+    "staff_pass_body": "Approved at submission; no one needs to look at it.",
+    "staff_ask": "The customer must fix something",
+    "staff_ask_body": "The customer sees exactly what to fix and can do it themselves.",
+    "staff_hold": "Needs a person to confirm",
+    "staff_hold_body": "Possible risk: check the items below before approving.",
+    "staff_incomplete": "Not started",
+    "staff_incomplete_body": "Consent not given yet.",
+    "useCity": "Use {city} for my plan",
+    "required": "Required",
+    "optional": "Optional",
+    "docsNeedGst": "Your plan includes {products}, which need an active GSTIN, so the GST certificate is required. Upload a photo of each document; we read the numbers ourselves.",
+    "docsNoGst": "Your plan doesn't need GST. Just your ID (or DigiLocker) and a recent electricity bill. GST and Udyam certificates are optional. We read the numbers ourselves; nothing to type.",
+    "sampleTitle": "Demo: use sample documents",
+    "sampleHint": "Loads one of the case pack's sample businesses as if you photographed the documents. Only the code is shown here.",
+    "docsProgress": "{done} of {total} required documents uploaded"
   },
   "review": {
     "title": "Review and submit",
@@ -479,7 +619,11 @@
     "submittedBody": "Our team will review it and contact you. You can track progress in My orders.",
     "goOrders": "Go to my orders",
     "edit": "Edit",
-    "helpHint": "Some items need action. Fix them, or ask our team for help and submit anyway."
+    "helpHint": "Some items need action. Fix them, or ask our team for help and submit anyway.",
+    "locked": "Finish verification first",
+    "lockedBody": "Your verification has items to fix.",
+    "goVerify": "Go to verification",
+    "verdictHold": "Our team will confirm a few details after you submit."
   },
   "help": {
     "title": "Talk to a person",
@@ -494,7 +638,7 @@
   },
   "orders": {
     "title": "My orders",
-    "subtitle": "Track your applications and continue unfinished ones.",
+    "subtitle": "Everything about your connection in one place.",
     "empty": "No orders yet",
     "emptyBody": "Start with the advisor to build your first plan.",
     "order": "Order #{id}",
@@ -508,7 +652,53 @@
     "ev_help": "Help requested",
     "ev_help_status": "Help: {status}",
     "items": "{n} products",
-    "newOrder": "Start a new order"
+    "newOrder": "Start a new order",
+    "stage_submitted": "Application received",
+    "stage_approved": "Verified",
+    "stage_confirmed": "Signed & AutoPay",
+    "stage_scheduled": "Technician booked",
+    "stage_installed": "Installed",
+    "stage_live": "Service live",
+    "waiting_team": "Our team is checking a few details. We'll call you if anything is needed.",
+    "waiting_customer": "Waiting for you",
+    "waiting_technician": "Our technician team is on it",
+    "nextTitle": "Your next step",
+    "signTitle": "Sign your order and set up AutoPay",
+    "signBody": "Sign with a one-time code and choose your UPI app. Your monthly bill is then paid automatically; cancel anytime from your UPI app.",
+    "getCode": "Send signing code",
+    "code": "6-digit code",
+    "upiApp": "Pay monthly with",
+    "signPay": "Sign and set up AutoPay",
+    "payFailed": "The last AutoPay attempt was declined. Your order is safe: try again or pick another app.",
+    "fixTitle": "Our team needs something from you",
+    "fixGo": "Fix it now",
+    "services": "Your services",
+    "eta": "by {date}",
+    "expectedLive": "All services live by {date}",
+    "visit": "Technician visit",
+    "visitWhen": "{date}, {window}",
+    "rescheduled": "Rescheduled",
+    "history": "Order history",
+    "others": "Other orders",
+    "liveTitle": "You're live!",
+    "liveBody": "All services are active. Thank you for choosing us.",
+    "ev_auto_approved": "Verified automatically",
+    "ev_confirmed": "Order signed, AutoPay active",
+    "ev_payment_failed": "AutoPay attempt declined",
+    "ev_phone_verified": "Mobile confirmed",
+    "ev_digilocker_verified": "Identity confirmed (DigiLocker)",
+    "ev_call_reached": "Our team called you",
+    "ev_call_no_answer": "We tried to call you",
+    "ev_call_call_back": "Call-back arranged",
+    "ev_demo_specimen_loaded": "Demo documents loaded",
+    "visitAfterSign": "We book your visit as soon as the order is signed",
+    "ev_sample_documents_loaded": "Sample documents loaded",
+    "ev_city_updated": "City updated",
+    "dueTitle": "Complete within {days} days",
+    "dueBy": "Sign and set up AutoPay by {date} to keep your installation slot",
+    "dueLeftDays": "{d}d {h}h left",
+    "dueLeftHours": "{h}h left",
+    "dueOver": "Time is up: our team will call you"
   },
   "voice": {
     "start": "Speak",
@@ -528,5 +718,20 @@
   },
   "errors": {
     "signInRequired": "Please sign in to continue"
+  },
+  "footer": {
+    "journey": "Get started",
+    "support": "Support",
+    "languages": "Available in English, Hindi and Telugu",
+    "privacyTitle": "Your data, handled with care",
+    "privacy1": "Consent before any document is collected",
+    "privacy2": "Documents are read on our own servers, never sent to AI",
+    "privacy3": "Identifiers masked; documents deleted after the retention period"
+  },
+  "sms": {
+    "app": "Messages",
+    "now": "now",
+    "body": "{code} is your one-time code for Airtel Vyapaar Connect. Do not share it with anyone.",
+    "tap": "Tap to fill the code"
   }
 }
